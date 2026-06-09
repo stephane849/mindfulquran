@@ -1,0 +1,40 @@
+name: API Probe
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe Quran API hosts
+        run: |
+          UA="Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36"
+          ORIGIN="https://mindfulquran.vercel.app"
+          for HOST in api.qurancdn.com api.quran.com; do
+            echo "================ $HOST chapters ================"
+            curl -s -o /tmp/body -w "STATUS %{http_code}\n" -D /tmp/hdrs \
+              -H "User-Agent: $UA" -H "Origin: $ORIGIN" \
+              "https://$HOST/api/v4/chapters?language=en" || true
+            grep -i "access-control-allow-origin" /tmp/hdrs || echo "NO CORS HEADER"
+            head -c 200 /tmp/body; echo
+            echo "================ $HOST verses ================"
+            curl -s -o /tmp/body -w "STATUS %{http_code}\n" -D /tmp/hdrs \
+              -H "User-Agent: $UA" -H "Origin: $ORIGIN" \
+              "https://$HOST/api/v4/verses/by_chapter/1?translations=131&fields=text_uthmani&per_page=5&page=1" || true
+            grep -i "access-control-allow-origin" /tmp/hdrs || echo "NO CORS HEADER"
+            head -c 300 /tmp/body; echo
+          done
+
+      - name: Find Abdel Haleem translation id
+        run: |
+          curl -s -H "User-Agent: Mozilla/5.0" \
+            "https://api.qurancdn.com/api/v4/resources/translations?language=en" \
+            | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          for t in data.get('translations', []):
+              name = (t.get('name','') + ' ' + t.get('author_name','')).lower()
+              if 'haleem' in name or t['id'] in (131, 203, 20, 22, 85):
+                  print(t['id'], '|', t.get('name'), '|', t.get('author_name'))
+          " || true
