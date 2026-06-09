@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, Amiri } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/lib/providers';
+import { PageScroll } from '@/components/PageScroll';
 
 const inter = Inter({
   variable: '--font-inter',
@@ -31,7 +32,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${amiri.variable} h-full`}>
       <body className="bg-paper text-ink h-full font-sans">
-        <Providers>{children}</Providers>
+        <Providers>
+          <PageScroll />
+          {children}
+        </Providers>
       </body>
     </html>
   );

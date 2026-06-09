@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { ENGLISH_TRANSLATIONS, DEFAULT_TRANSLATION_ID } from './api';
 import type { LastRead } from './types';
 
 interface AppStore {
@@ -9,17 +10,30 @@ interface AppStore {
   setTranslationId: (id: number) => void;
 }
 
+const isValidTranslation = (id: number) =>
+  ENGLISH_TRANSLATIONS.some((t) => t.id === id);
+
 export const useAppStore = create<AppStore>()(
   persist(
     (set) => ({
       lastRead: null,
-      translationId: 131,
+      translationId: DEFAULT_TRANSLATION_ID,
       setLastRead: (lastRead) => set({ lastRead }),
       setTranslationId: (translationId) => set({ translationId }),
     }),
     {
       name: 'mindful-quran',
       storage: createJSONStorage(() => localStorage),
+      version: 1,
+      // v0 stored ids from a different id scheme (e.g. 131) that this API
+      // doesn't recognise — reset anything invalid to the default
+      migrate: (state) => {
+        const s = state as Partial<AppStore>;
+        if (!s.translationId || !isValidTranslation(s.translationId)) {
+          s.translationId = DEFAULT_TRANSLATION_ID;
+        }
+        return s as AppStore;
+      },
     }
   )
 );

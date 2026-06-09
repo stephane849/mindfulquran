@@ -14,16 +14,16 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-paper">
-      <header className="px-4 pt-5 pb-4 border-b border-border flex items-center justify-between">
+      <header className="px-4 pt-5 pb-4 border-b-2 border-ink flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-ink">Mindful Quran</h1>
-          <p className="text-xs text-muted font-arabic" dir="rtl" lang="ar">
+          <h1 className="text-lg font-bold">Mindful Quran</h1>
+          <p className="text-sm font-arabic" dir="rtl" lang="ar">
             القرآن الكريم
           </p>
         </div>
         <Link
           href="/settings"
-          className="text-xs text-muted border border-border px-2 py-1 active:bg-border"
+          className="text-sm font-bold border-2 border-ink px-3 py-2 active:bg-ink active:text-paper"
         >
           Settings
         </Link>
@@ -32,13 +32,14 @@ export default function HomePage() {
       <LastReadBanner />
 
       {isLoading && (
-        <p className="px-4 py-8 text-center text-sm text-muted">Loading surahs…</p>
+        <p className="px-4 py-8 text-center text-sm font-bold">Loading surahs…</p>
       )}
 
       {error && (
-        <p className="px-4 py-8 text-center text-sm text-muted">
-          Could not load surahs. Check your connection.
-        </p>
+        <div className="px-4 py-8 text-center text-sm">
+          <p className="font-bold">Could not load surahs.</p>
+          <p className="mt-2">{error instanceof Error ? error.message : String(error)}</p>
+        </div>
       )}
 
       {chapters && (

@@ -10,21 +10,19 @@ export function VerseCard({ verse, ref }: Props) {
   const translationText = translation?.text.replace(/<[^>]+>/g, '') ?? '';
 
   return (
-    <div ref={ref} className="px-4 py-5 border-b border-border">
-      <div className="flex items-start gap-3 flex-row-reverse">
-        <p
-          className="font-arabic text-2xl leading-loose text-ink text-right flex-1"
-          dir="rtl"
-          lang="ar"
-        >
-          {verse.text_uthmani}
-        </p>
-        <span className="shrink-0 w-7 h-7 border border-border flex items-center justify-center text-xs text-muted mt-1">
-          {verse.verse_number}
-        </span>
-      </div>
+    <div ref={ref} id={`verse-${verse.verse_number}`} className="px-4 py-5 divider-dotted">
+      <p
+        className="font-arabic text-2xl leading-loose text-right"
+        dir="rtl"
+        lang="ar"
+      >
+        {verse.text_uthmani}
+        <span className="text-base font-sans font-bold">&nbsp;({verse.verse_number})</span>
+      </p>
       {translationText && (
-        <p className="text-sm leading-relaxed text-muted mt-3">{translationText}</p>
+        <p className="text-[15px] leading-relaxed mt-3">
+          <span className="font-bold">{verse.verse_number}.</span> {translationText}
+        </p>
       )}
     </div>
   );

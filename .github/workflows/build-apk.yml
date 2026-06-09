@@ -35,6 +35,9 @@ jobs:
       - name: Add Android platform
         run: npx cap add android
 
+      - name: Install custom MainActivity (volume-button paging)
+        run: cp native/MainActivity.java android/app/src/main/java/com/mindfulquran/app/MainActivity.java
+
       - name: Sync web assets
         run: npx cap sync android
 

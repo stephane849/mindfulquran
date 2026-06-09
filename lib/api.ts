@@ -30,11 +30,14 @@ export async function getVerses(
   });
 }
 
+// Ids verified against /resources/translations?language=en on api.qurancdn.com
 export const ENGLISH_TRANSLATIONS = [
-  { id: 131, name: 'Sahih International', author: 'Sahih International' },
-  { id: 203, name: 'The Clear Quran', author: 'Mustafa Khattab' },
-  { id: 20, name: 'Pickthall', author: 'Muhammad Pickthall' },
-  { id: 22, name: 'Yusuf Ali', author: 'Abdullah Yusuf Ali' },
+  { id: 20, name: 'Saheeh International', author: 'Saheeh International' },
+  { id: 85, name: 'M.A.S. Abdel Haleem', author: 'Abdul Haleem' },
+  { id: 22, name: 'A. Yusuf Ali', author: 'Abdullah Yusuf Ali' },
+  { id: 203, name: 'Al-Hilali & Khan', author: 'al-Hilali & Muhsin Khan' },
 ] as const;
+
+export const DEFAULT_TRANSLATION_ID = 20;
 
 export type TranslationId = (typeof ENGLISH_TRANSLATIONS)[number]['id'];
