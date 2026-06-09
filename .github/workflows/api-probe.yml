@@ -26,6 +26,16 @@ jobs:
             head -c 300 /tmp/body; echo
           done
 
+      - name: Probe juz and hizb endpoints
+        run: |
+          for PATH_PART in by_juz by_hizb; do
+            echo "================ verses/$PATH_PART/1 ================"
+            curl -s -o /tmp/body -w "STATUS %{http_code}\n" \
+              -H "User-Agent: Mozilla/5.0" \
+              "https://api.qurancdn.com/api/v4/verses/$PATH_PART/1?translations=20&fields=text_uthmani&per_page=2&page=1" || true
+            head -c 300 /tmp/body; echo
+          done
+
       - name: Find Abdel Haleem translation id
         run: |
           curl -s -H "User-Agent: Mozilla/5.0" \
