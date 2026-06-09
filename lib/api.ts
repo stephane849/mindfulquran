@@ -17,8 +17,17 @@ export async function getChapters(): Promise<Chapter[]> {
   return data.chapters;
 }
 
-export async function getVerses(
-  chapterId: number,
+export type ReaderSource = 'chapter' | 'juz' | 'hizb';
+
+const SOURCE_PATH: Record<ReaderSource, string> = {
+  chapter: 'by_chapter',
+  juz: 'by_juz',
+  hizb: 'by_hizb',
+};
+
+export async function getVersesBy(
+  source: ReaderSource,
+  id: number,
   page: number,
   translationId: number | null
 ): Promise<VersesResponse> {
@@ -28,7 +37,7 @@ export async function getVerses(
     page: String(page),
   };
   if (translationId !== null) params.translations = String(translationId);
-  return get<VersesResponse>(`/verses/by_chapter/${chapterId}`, params);
+  return get<VersesResponse>(`/verses/${SOURCE_PATH[source]}/${id}`, params);
 }
 
 // Ids verified against /resources/translations?language=en on api.qurancdn.com

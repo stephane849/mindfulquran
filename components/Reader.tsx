@@ -1,33 +1,50 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { Fragment, useEffect, useRef, useState, useCallback } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { getChapters, getVerses } from '@/lib/api';
+import { getChapters, getVersesBy, type ReaderSource } from '@/lib/api';
 import { SurahHeader } from '@/components/SurahHeader';
 import { VerseCard } from '@/components/VerseCard';
 import { useAppStore } from '@/lib/store';
-import type { Verse } from '@/lib/types';
+import type { Chapter, Verse } from '@/lib/types';
 
-export function SurahPageClient({ surahId }: { surahId: number }) {
+const surahOf = (verse: Verse) => Number(verse.verse_key.split(':')[0]);
+
+export function Reader({ source, id }: { source: ReaderSource; id: number }) {
   const translationId = useAppStore((s) => s.translationId);
+  const showTranslation = useAppStore((s) => s.showTranslation);
+  const setShowTranslation = useAppStore((s) => s.setShowTranslation);
+  const arabicSize = useAppStore((s) => s.arabicSize);
   const setLastRead = useAppStore((s) => s.setLastRead);
   const loaderRef = useRef<HTMLDivElement>(null);
   const resumedRef = useRef(false);
+  // Persisted state differs from the prerendered HTML — gate it until mounted
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const { data: chapters } = useQuery({
     queryKey: ['chapters'],
     queryFn: getChapters,
   });
 
-  const chapter = chapters?.find((c) => c.id === surahId);
+  const chapter = source === 'chapter' ? chapters?.find((c) => c.id === id) : undefined;
+  const title =
+    source === 'chapter'
+      ? chapter?.name_simple ?? `Surah ${id}`
+      : source === 'juz'
+      ? `Juz ${id}`
+      : `Hizb ${id}`;
+
+  const effectiveTranslation = mounted && showTranslation ? translationId : null;
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
     useInfiniteQuery({
-      queryKey: ['verses', surahId, translationId],
-      queryFn: ({ pageParam }) => getVerses(surahId, pageParam, translationId),
+      queryKey: ['verses', source, id, effectiveTranslation],
+      queryFn: ({ pageParam }) => getVersesBy(source, id, pageParam, effectiveTranslation),
       initialPageParam: 1,
       getNextPageParam: (lastPage) => lastPage.pagination?.next_page ?? undefined,
+      enabled: mounted,
     });
 
   // Auto-load next page when bottom sentinel enters viewport
@@ -58,15 +75,17 @@ export function SurahPageClient({ surahId }: { surahId: number }) {
 
   const handleVerseVisible = useCallback(
     (verse: Verse) => {
-      if (!chapter) return;
+      const surahId = surahOf(verse);
+      const surah = chapters?.find((c) => c.id === surahId);
+      if (!surah) return;
       setLastRead({
         surahId,
-        surahName: chapter.name_simple,
+        surahName: surah.name_simple,
         verseKey: verse.verse_key,
-        verseNumber: verse.verse_number,
+        verseNumber: Number(verse.verse_key.split(':')[1]),
       });
     },
-    [chapter, surahId, setLastRead]
+    [chapters, setLastRead]
   );
 
   const allVerses = data?.pages.flatMap((p) => p.verses) ?? [];
@@ -77,14 +96,23 @@ export function SurahPageClient({ surahId }: { surahId: number }) {
         <Link href="/" className="text-sm font-bold min-w-[44px] py-1">
           ‹ Back
         </Link>
-        {chapter && (
-          <span className="text-sm font-bold truncate">{chapter.name_simple}</span>
+        <span className="text-sm font-bold truncate flex-1">{title}</span>
+        {mounted && (
+          <button
+            onClick={() => setShowTranslation(!showTranslation)}
+            aria-pressed={showTranslation}
+            className={`text-sm font-bold border-2 border-ink px-3 py-1 ${
+              showTranslation ? 'bg-ink text-paper' : 'bg-paper text-ink'
+            }`}
+          >
+            EN
+          </button>
         )}
       </nav>
 
       {chapter && <SurahHeader chapter={chapter} />}
 
-      {isLoading && (
+      {(isLoading || !mounted) && (
         <p className="px-4 py-8 text-center text-sm font-bold">Loading verses…</p>
       )}
 
@@ -95,17 +123,43 @@ export function SurahPageClient({ surahId }: { surahId: number }) {
         </div>
       )}
 
-      {allVerses.map((verse) => (
-        <VisibleVerseCard key={verse.id} verse={verse} onVisible={handleVerseVisible} />
-      ))}
+      {allVerses.map((verse, i) => {
+        const surahId = surahOf(verse);
+        const startsNewSurah =
+          source !== 'chapter' && (i === 0 || surahOf(allVerses[i - 1]) !== surahId);
+        const surah = startsNewSurah ? chapters?.find((c) => c.id === surahId) : undefined;
+        return (
+          <Fragment key={verse.id}>
+            {surah && <SurahDivider chapter={surah} />}
+            <VisibleVerseCard
+              verse={verse}
+              onVisible={handleVerseVisible}
+              arabicSize={arabicSize}
+            />
+          </Fragment>
+        );
+      })}
 
       <div ref={loaderRef} className="py-5 text-center text-xs font-bold">
         {isFetchingNextPage
           ? 'Loading more…'
           : !hasNextPage && allVerses.length > 0
-          ? '· End of surah ·'
+          ? `· End of ${source === 'chapter' ? 'surah' : source} ·`
           : null}
       </div>
+    </div>
+  );
+}
+
+function SurahDivider({ chapter }: { chapter: Chapter }) {
+  return (
+    <div className="px-4 py-4 border-y-2 border-ink text-center bg-paper">
+      <span className="font-arabic text-2xl" dir="rtl" lang="ar">
+        {chapter.name_arabic}
+      </span>
+      <span className="block text-sm font-bold">
+        {chapter.id}. {chapter.name_simple}
+      </span>
     </div>
   );
 }
@@ -113,9 +167,11 @@ export function SurahPageClient({ surahId }: { surahId: number }) {
 function VisibleVerseCard({
   verse,
   onVisible,
+  arabicSize,
 }: {
   verse: Verse;
   onVisible: (v: Verse) => void;
+  arabicSize: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -132,5 +188,5 @@ function VisibleVerseCard({
     return () => obs.disconnect();
   }, [verse, onVisible]);
 
-  return <VerseCard ref={ref} verse={verse} />;
+  return <VerseCard ref={ref} verse={verse} arabicSize={arabicSize} />;
 }
