@@ -1,13 +1,16 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Scheherazade_New } from 'next/font/google';
+import { Lato, Scheherazade_New } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/lib/providers';
 import { PageScroll } from '@/components/PageScroll';
 import { ScrollBar } from '@/components/ScrollBar';
 
-const inter = Inter({
-  variable: '--font-inter',
+// MMD's typeface; Google Fonts lacks its Medium cut, so 400 carries body
+// text and 700 is reserved for titles
+const lato = Lato({
+  variable: '--font-lato',
   subsets: ['latin'],
+  weight: ['400', '700'],
   display: 'swap',
 });
 
@@ -31,7 +34,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${scheherazade.variable} h-full`}>
+    <html lang="en" className={`${lato.variable} ${scheherazade.variable} h-full`}>
       <body className="bg-paper text-ink h-full font-sans">
         <Providers>
           <PageScroll />

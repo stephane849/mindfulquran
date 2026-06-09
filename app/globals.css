@@ -9,7 +9,7 @@
   --color-muted: #000000;
 
   /* Fonts — loaded as CSS vars by next/font */
-  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-sans: var(--font-lato), system-ui, sans-serif;
   --font-arabic: var(--font-scheherazade), serif;
 }
 
@@ -29,6 +29,8 @@ body {
   background-color: #ffffff;
   color: #000000;
   -webkit-font-smoothing: antialiased;
+  /* Gutter reserved for the MMD scroll rail */
+  padding-right: 28px;
 }
 
 /* Native scrollbar hidden — the ScrollBar component renders the MMD rail,

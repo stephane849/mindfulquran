@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { TopBar } from '@/components/TopBar';
 import { useAppStore, type BrowseMode, type ArabicSize } from '@/lib/store';
 import { ENGLISH_TRANSLATIONS } from '@/lib/api';
 
@@ -20,7 +20,7 @@ const ARABIC_SIZES: { value: ArabicSize; label: string }[] = [
 
 function Check() {
   return (
-    <span className="text-lg font-bold" aria-label="selected">
+    <span className="text-xl font-bold" aria-label="selected">
       ✓
     </span>
   );
@@ -46,27 +46,22 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-paper">
-      <nav className="sticky top-0 bg-paper border-b-2 border-ink px-4 py-3 flex items-center gap-3">
-        <Link href="/" className="text-sm font-bold min-w-[44px] py-1">
-          ‹ Back
-        </Link>
-        <span className="text-sm font-bold">Settings</span>
-      </nav>
+      <TopBar title="Settings" />
 
       {!mounted ? (
-        <p className="px-4 py-8 text-center text-sm font-bold">Loading…</p>
+        <p className="px-4 py-8 text-center text-base">Loading…</p>
       ) : (
         <>
           <section className="px-4 pt-5">
-            <p className="text-xs font-bold uppercase tracking-widest mb-3">
+            <p className="text-[15px] font-bold uppercase tracking-widest mb-2">
               Translation
             </p>
             <ul>
               <li>
                 <button onClick={() => setShowTranslation(false)} className={rowClass}>
                   <div>
-                    <p className="text-sm font-bold">Arabic only</p>
-                    <p className="text-xs">No translation shown</p>
+                    <p className="text-lg font-bold">Arabic only</p>
+                    <p className="text-[15px]">Continuous mushaf-style text</p>
                   </div>
                   {!showTranslation && <Check />}
                 </button>
@@ -75,8 +70,8 @@ export default function SettingsPage() {
                 <li key={t.id}>
                   <button onClick={() => setTranslationId(t.id)} className={rowClass}>
                     <div>
-                      <p className="text-sm font-bold">{t.name}</p>
-                      <p className="text-xs">{t.author}</p>
+                      <p className="text-lg font-bold">{t.name}</p>
+                      <p className="text-[15px]">{t.author}</p>
                     </div>
                     {showTranslation && translationId === t.id && <Check />}
                   </button>
@@ -86,7 +81,7 @@ export default function SettingsPage() {
           </section>
 
           <section className="px-4 pt-6">
-            <p className="text-xs font-bold uppercase tracking-widest mb-3">
+            <p className="text-[15px] font-bold uppercase tracking-widest mb-2">
               Browse by
             </p>
             <ul>
@@ -94,8 +89,8 @@ export default function SettingsPage() {
                 <li key={m.value}>
                   <button onClick={() => setBrowseMode(m.value)} className={rowClass}>
                     <div>
-                      <p className="text-sm font-bold">{m.label}</p>
-                      <p className="text-xs">{m.detail}</p>
+                      <p className="text-lg font-bold">{m.label}</p>
+                      <p className="text-[15px]">{m.detail}</p>
                     </div>
                     {browseMode === m.value && <Check />}
                   </button>
@@ -105,7 +100,7 @@ export default function SettingsPage() {
           </section>
 
           <section className="px-4 pt-6 pb-8">
-            <p className="text-xs font-bold uppercase tracking-widest mb-3">
+            <p className="text-[15px] font-bold uppercase tracking-widest mb-2">
               Arabic text size
             </p>
             <ul>
@@ -122,7 +117,7 @@ export default function SettingsPage() {
                       >
                         عربي
                       </span>
-                      <span className="text-sm font-bold">{s.label}</span>
+                      <span className="text-lg font-bold">{s.label}</span>
                     </div>
                     {arabicSize === s.value && <Check />}
                   </button>

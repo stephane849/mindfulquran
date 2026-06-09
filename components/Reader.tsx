@@ -2,14 +2,20 @@
 
 import { Fragment, useEffect, useRef, useState, useCallback } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import Link from 'next/link';
 import { getChapters, getVersesBy, type ReaderSource } from '@/lib/api';
 import { SurahHeader } from '@/components/SurahHeader';
+import { TopBar } from '@/components/TopBar';
 import { VerseCard } from '@/components/VerseCard';
 import { useAppStore } from '@/lib/store';
+import {
+  toArabicDigits,
+  ayahNumberOf,
+  surahNumberOf,
+  clampArabicSize,
+  ARABIC_TEXT_SIZES,
+  ARABIC_MARKER_SIZES,
+} from '@/lib/arabic';
 import type { Chapter, Verse } from '@/lib/types';
-
-const surahOf = (verse: Verse) => Number(verse.verse_key.split(':')[0]);
 
 export function Reader({ source, id }: { source: ReaderSource; id: number }) {
   const translationId = useAppStore((s) => s.translationId);
@@ -75,14 +81,14 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
 
   const handleVerseVisible = useCallback(
     (verse: Verse) => {
-      const surahId = surahOf(verse);
+      const surahId = surahNumberOf(verse.verse_key);
       const surah = chapters?.find((c) => c.id === surahId);
       if (!surah) return;
       setLastRead({
         surahId,
         surahName: surah.name_simple,
         verseKey: verse.verse_key,
-        verseNumber: Number(verse.verse_key.split(':')[1]),
+        verseNumber: ayahNumberOf(verse.verse_key),
       });
     },
     [chapters, setLastRead]
@@ -90,57 +96,74 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
 
   const allVerses = data?.pages.flatMap((p) => p.verses) ?? [];
 
+  // Consecutive same-surah runs; a chapter read is always a single group
+  const groups: { surahId: number; verses: Verse[] }[] = [];
+  for (const verse of allVerses) {
+    const surahId = surahNumberOf(verse.verse_key);
+    const last = groups[groups.length - 1];
+    if (last && last.surahId === surahId) last.verses.push(verse);
+    else groups.push({ surahId, verses: [verse] });
+  }
+
+  const mushafMode = mounted && !showTranslation;
+
   return (
     <div className="min-h-screen bg-paper">
-      <nav className="sticky top-0 z-10 bg-paper border-b-2 border-ink flex items-center gap-3 px-4 py-3">
-        <Link href="/" className="text-sm font-bold min-w-[44px] py-1">
-          ‹ Back
-        </Link>
-        <span className="text-sm font-bold truncate flex-1">{title}</span>
-        {mounted && (
-          <button
-            onClick={() => setShowTranslation(!showTranslation)}
-            aria-pressed={showTranslation}
-            className={`text-sm font-bold border-2 border-ink px-3 py-1 ${
-              showTranslation ? 'bg-ink text-paper' : 'bg-paper text-ink'
-            }`}
-          >
-            EN
-          </button>
-        )}
-      </nav>
+      <TopBar
+        title={title}
+        right={
+          mounted ? (
+            <button
+              onClick={() => setShowTranslation(!showTranslation)}
+              aria-pressed={showTranslation}
+              className={`text-base font-bold border-2 border-ink rounded-lg px-3 py-1 ${
+                showTranslation ? 'bg-ink text-paper' : 'bg-paper text-ink'
+              }`}
+            >
+              EN
+            </button>
+          ) : undefined
+        }
+      />
 
       {chapter && <SurahHeader chapter={chapter} />}
 
       {(isLoading || !mounted) && (
-        <p className="px-4 py-8 text-center text-sm font-bold">Loading verses…</p>
+        <p className="px-4 py-8 text-center text-base">Loading verses…</p>
       )}
 
       {error && (
-        <div className="px-4 py-8 text-center text-sm">
+        <div className="px-4 py-8 text-center text-base">
           <p className="font-bold">Could not load verses.</p>
           <p className="mt-2">{error instanceof Error ? error.message : String(error)}</p>
         </div>
       )}
 
-      {allVerses.map((verse, i) => {
-        const surahId = surahOf(verse);
-        const startsNewSurah =
-          source !== 'chapter' && (i === 0 || surahOf(allVerses[i - 1]) !== surahId);
-        const surah = startsNewSurah ? chapters?.find((c) => c.id === surahId) : undefined;
-        return (
-          <Fragment key={verse.id}>
-            {surah && <SurahDivider chapter={surah} />}
-            <VisibleVerseCard
-              verse={verse}
-              onVisible={handleVerseVisible}
+      {groups.map((group) => (
+        <Fragment key={`${group.surahId}-${group.verses[0].id}`}>
+          {source !== 'chapter' && (
+            <SurahDivider chapter={chapters?.find((c) => c.id === group.surahId)} />
+          )}
+          {mushafMode ? (
+            <MushafGroup
+              verses={group.verses}
               arabicSize={arabicSize}
+              onVisible={handleVerseVisible}
             />
-          </Fragment>
-        );
-      })}
+          ) : (
+            group.verses.map((verse) => (
+              <VisibleVerseCard
+                key={verse.id}
+                verse={verse}
+                onVisible={handleVerseVisible}
+                arabicSize={arabicSize}
+              />
+            ))
+          )}
+        </Fragment>
+      ))}
 
-      <div ref={loaderRef} className="py-5 text-center text-xs font-bold">
+      <div ref={loaderRef} className="py-5 text-center text-[15px]">
         {isFetchingNextPage
           ? 'Loading more…'
           : !hasNextPage && allVerses.length > 0
@@ -151,13 +174,75 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
   );
 }
 
-function SurahDivider({ chapter }: { chapter: Chapter }) {
+/** Continuous mushaf-style flow: verses run inline, separated by ﴿n﴾ markers */
+function MushafGroup({
+  verses,
+  arabicSize,
+  onVisible,
+}: {
+  verses: Verse[];
+  arabicSize: number;
+  onVisible: (v: Verse) => void;
+}) {
+  const size = clampArabicSize(arabicSize);
   return (
-    <div className="px-4 py-4 border-y-2 border-ink text-center bg-paper">
-      <span className="font-arabic text-2xl" dir="rtl" lang="ar">
+    <p
+      className={`font-arabic ${ARABIC_TEXT_SIZES[size]} leading-loose px-4 py-5 text-right [text-align:justify]`}
+      dir="rtl"
+      lang="ar"
+    >
+      {verses.map((verse) => (
+        <MushafVerse
+          key={verse.id}
+          verse={verse}
+          markerClass={ARABIC_MARKER_SIZES[size]}
+          onVisible={onVisible}
+        />
+      ))}
+    </p>
+  );
+}
+
+function MushafVerse({
+  verse,
+  markerClass,
+  onVisible,
+}: {
+  verse: Verse;
+  markerClass: string;
+  onVisible: (v: Verse) => void;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) onVisible(verse);
+      },
+      { threshold: 0.1 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [verse, onVisible]);
+
+  return (
+    <span ref={ref} id={`verse-${verse.verse_number}`}>
+      {verse.text_uthmani}
+      <span className={markerClass}> ﴿{toArabicDigits(ayahNumberOf(verse.verse_key))}﴾ </span>
+    </span>
+  );
+}
+
+function SurahDivider({ chapter }: { chapter?: Chapter }) {
+  if (!chapter) return null;
+  return (
+    <div className="px-4 py-4 border-y-[3px] border-ink text-center bg-paper">
+      <span className="font-arabic text-3xl" dir="rtl" lang="ar">
         {chapter.name_arabic}
       </span>
-      <span className="block text-sm font-bold">
+      <span className="block text-lg font-bold">
         {chapter.id}. {chapter.name_simple}
       </span>
     </div>

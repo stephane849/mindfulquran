@@ -15,14 +15,14 @@ export function LastReadBanner() {
   return (
     <Link
       href={`/surah/${lastRead.surahId}#verse-${lastRead.verseNumber}`}
-      className="block mx-4 my-3 p-3 border-2 border-ink active:bg-ink active:text-paper"
+      className="block mx-4 my-3 p-4 border-2 border-ink rounded-lg active:bg-ink active:text-paper"
     >
-      <span className="text-xs font-bold uppercase tracking-widest">Continue Reading</span>
+      <span className="text-[15px] font-bold uppercase tracking-widest">
+        Continue Reading
+      </span>
       <div className="flex items-baseline justify-between mt-1">
-        <span className="font-bold text-base">{lastRead.surahName}</span>
-        <span className="text-sm font-bold">
-          Ayah {lastRead.verseNumber} ›
-        </span>
+        <span className="font-bold text-lg">{lastRead.surahName}</span>
+        <span className="text-lg">Ayah {lastRead.verseNumber} ›</span>
       </div>
     </Link>
   );

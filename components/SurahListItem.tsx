@@ -7,10 +7,10 @@ export function SurahListItem({ chapter }: { chapter: Chapter }) {
       href={`/surah/${chapter.id}`}
       className="flex items-center gap-3 px-4 py-3 divider-dotted active:bg-ink active:text-paper"
     >
-      <span className="w-8 shrink-0 text-lg font-bold tabular-nums">{chapter.id}</span>
+      <span className="w-9 shrink-0 text-lg font-bold tabular-nums">{chapter.id}</span>
       <div className="flex-1 min-w-0">
-        <p className="font-bold text-base leading-tight">{chapter.name_simple}</p>
-        <p className="text-xs mt-0.5">
+        <p className="font-bold text-lg leading-tight">{chapter.name_simple}</p>
+        <p className="text-[15px] mt-0.5">
           {chapter.translated_name.name} &middot; {chapter.verses_count} ayahs
         </p>
       </div>

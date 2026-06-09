@@ -21,16 +21,16 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-paper">
-      <header className="px-4 pt-5 pb-4 border-b-2 border-ink flex items-center justify-between">
+      <header className="px-4 pt-5 pb-4 border-b-[3px] border-ink flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold">Mindful Quran</h1>
-          <p className="text-base font-arabic" dir="rtl" lang="ar">
+          <h1 className="text-2xl font-bold">Mindful Quran</h1>
+          <p className="text-lg font-arabic" dir="rtl" lang="ar">
             القرآن الكريم
           </p>
         </div>
         <Link
           href="/settings"
-          className="text-sm font-bold border-2 border-ink px-3 py-2 active:bg-ink active:text-paper"
+          className="text-base font-bold border-2 border-ink rounded-lg px-3 py-2 active:bg-ink active:text-paper"
         >
           Settings
         </Link>
@@ -39,16 +39,16 @@ export default function HomePage() {
       <LastReadBanner />
 
       {!mounted && (
-        <p className="px-4 py-8 text-center text-sm font-bold">Loading…</p>
+        <p className="px-4 py-8 text-center text-base">Loading…</p>
       )}
 
       {mounted && browseMode === 'surah' && (
         <>
           {isLoading && (
-            <p className="px-4 py-8 text-center text-sm font-bold">Loading surahs…</p>
+            <p className="px-4 py-8 text-center text-base">Loading surahs…</p>
           )}
           {error && (
-            <div className="px-4 py-8 text-center text-sm">
+            <div className="px-4 py-8 text-center text-base">
               <p className="font-bold">Could not load surahs.</p>
               <p className="mt-2">
                 {error instanceof Error ? error.message : String(error)}
@@ -84,11 +84,11 @@ function DivisionList({ kind, count }: { kind: 'juz' | 'hizb'; count: number }) 
             className="flex items-center gap-3 px-4 py-3 divider-dotted active:bg-ink active:text-paper"
           >
             <span className="w-8 shrink-0 text-lg font-bold tabular-nums">{n}</span>
-            <span className="flex-1 font-bold text-base">
+            <span className="flex-1 font-bold text-lg">
               {label} {n}
             </span>
             {kind === 'hizb' && (
-              <span className="text-xs">Juz {Math.ceil(n / 2)}</span>
+              <span className="text-[15px]">Juz {Math.ceil(n / 2)}</span>
             )}
             <span className="shrink-0 text-xl font-bold" aria-hidden>
               ›
