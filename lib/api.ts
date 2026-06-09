@@ -62,6 +62,6 @@ export const ENGLISH_TRANSLATIONS = [
   { id: 203, name: 'Al-Hilali & Khan', author: 'al-Hilali & Muhsin Khan' },
 ] as const;
 
-export const DEFAULT_TRANSLATION_ID = 20;
+export const DEFAULT_TRANSLATION_ID = 85; // M.A.S. Abdel Haleem
 
 export type TranslationId = (typeof ENGLISH_TRANSLATIONS)[number]['id'];

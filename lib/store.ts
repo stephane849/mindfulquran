@@ -15,11 +15,14 @@ interface AppStore {
   showTranslation: boolean;
   browseMode: BrowseMode;
   arabicSize: ArabicSize;
+  /** Tappable words with glosses; off skips the heavier word-by-word fetch */
+  tapDictionary: boolean;
   setLastRead: (data: LastRead) => void;
   setTranslationId: (id: number) => void;
   setShowTranslation: (show: boolean) => void;
   setBrowseMode: (mode: BrowseMode) => void;
   setArabicSize: (size: ArabicSize) => void;
+  setTapDictionary: (on: boolean) => void;
 }
 
 const isValidTranslation = (id: unknown): id is number =>
@@ -33,17 +36,19 @@ export const useAppStore = create<AppStore>()(
       showTranslation: true,
       browseMode: 'surah',
       arabicSize: 1,
+      tapDictionary: true,
       setLastRead: (lastRead) => set({ lastRead }),
       setTranslationId: (translationId) =>
         set({ translationId, showTranslation: true }),
       setShowTranslation: (showTranslation) => set({ showTranslation }),
       setBrowseMode: (browseMode) => set({ browseMode }),
       setArabicSize: (arabicSize) => set({ arabicSize }),
+      setTapDictionary: (tapDictionary) => set({ tapDictionary }),
     }),
     {
       name: 'mindful-quran',
       storage: createJSONStorage(() => localStorage),
-      version: 2,
+      version: 3,
       migrate: (state, version) => {
         const s = state as Record<string, unknown>;
         if (version < 2) {
@@ -54,6 +59,10 @@ export const useAppStore = create<AppStore>()(
           } else if (!isValidTranslation(s.translationId)) {
             s.translationId = DEFAULT_TRANSLATION_ID;
           }
+        }
+        if (version < 3 && s.translationId === 20) {
+          // 20 (Saheeh Int'l) was only ever the old default — move to Abdel Haleem
+          s.translationId = DEFAULT_TRANSLATION_ID;
         }
         return s as unknown as AppStore;
       },

@@ -25,6 +25,8 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
   const setTranslationId = useAppStore((s) => s.setTranslationId);
   const arabicSize = useAppStore((s) => s.arabicSize);
   const setArabicSize = useAppStore((s) => s.setArabicSize);
+  const tapDictionary = useAppStore((s) => s.tapDictionary);
+  const setTapDictionary = useAppStore((s) => s.setTapDictionary);
   const setLastRead = useAppStore((s) => s.setLastRead);
   const loaderRef = useRef<HTMLDivElement>(null);
   const resumedRef = useRef(false);
@@ -48,8 +50,8 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
       : `Hizb ${id}`;
 
   const effectiveTranslation = mounted && showTranslation ? translationId : null;
-  // Word-by-word glosses power the tap dictionary — card mode only
-  const withWords = effectiveTranslation !== null;
+  // Word-by-word glosses power the tap dictionary in both card and mushaf modes
+  const withWords = mounted && tapDictionary;
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
     useInfiniteQuery({
@@ -166,6 +168,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
               verses={group.verses}
               arabicSize={arabicSize}
               onVisible={handleVerseVisible}
+              onWordTap={tapDictionary ? setSelectedWord : undefined}
             />
           ) : (
             group.verses.map((verse) => (
@@ -191,7 +194,22 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
 
       {/* Quick reading settings */}
       <BottomSheet open={settingsOpen} onClose={() => setSettingsOpen(false)}>
-        <p className="text-[15px] font-bold uppercase tracking-widest mt-3 mb-2">
+        <button
+          onClick={() => setTapDictionary(!tapDictionary)}
+          aria-pressed={tapDictionary}
+          className="w-full flex items-center justify-between py-3 mt-2 divider-dotted text-left active:bg-ink active:text-paper"
+        >
+          <span className="text-lg font-bold">Tap dictionary</span>
+          <span
+            className={`text-base font-bold border-2 border-ink rounded-lg px-3 py-1 ${
+              tapDictionary ? 'bg-ink text-paper' : ''
+            }`}
+          >
+            {tapDictionary ? 'On' : 'Off'}
+          </span>
+        </button>
+
+        <p className="text-[15px] font-bold uppercase tracking-widest mt-4 mb-2">
           Arabic text size
         </p>
         <div className="flex gap-2">
@@ -264,10 +282,12 @@ function MushafGroup({
   verses,
   arabicSize,
   onVisible,
+  onWordTap,
 }: {
   verses: Verse[];
   arabicSize: number;
   onVisible: (v: Verse) => void;
+  onWordTap?: (w: Word) => void;
 }) {
   const size = clampArabicSize(arabicSize);
   return (
@@ -282,6 +302,7 @@ function MushafGroup({
           verse={verse}
           markerClass={ARABIC_MARKER_SIZES[size]}
           onVisible={onVisible}
+          onWordTap={onWordTap}
         />
       ))}
     </p>
@@ -292,10 +313,12 @@ function MushafVerse({
   verse,
   markerClass,
   onVisible,
+  onWordTap,
 }: {
   verse: Verse;
   markerClass: string;
   onVisible: (v: Verse) => void;
+  onWordTap?: (w: Word) => void;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
 
@@ -312,9 +335,23 @@ function MushafVerse({
     return () => obs.disconnect();
   }, [verse, onVisible]);
 
+  const words = verse.words?.filter((w) => w.char_type_name === 'word');
+
   return (
     <span ref={ref} id={`verse-${verse.verse_number}`}>
-      {verse.text_uthmani}
+      {words?.length && onWordTap
+        ? words.map((word, i) => (
+            <span key={word.id}>
+              {i > 0 && ' '}
+              <button
+                onClick={() => onWordTap(word)}
+                className="active:bg-ink active:text-paper"
+              >
+                {word.text_uthmani}
+              </button>
+            </span>
+          ))
+        : verse.text_uthmani}
       <span className={markerClass}> ﴿{toArabicDigits(ayahNumberOf(verse.verse_key))}﴾ </span>
     </span>
   );

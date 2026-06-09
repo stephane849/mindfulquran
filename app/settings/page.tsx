@@ -25,9 +25,11 @@ export default function SettingsPage() {
     translationId,
     showTranslation,
     arabicSize,
+    tapDictionary,
     setTranslationId,
     setShowTranslation,
     setArabicSize,
+    setTapDictionary,
   } = useAppStore();
   // Persisted state differs from prerendered HTML — wait for mount
   const [mounted, setMounted] = useState(false);
@@ -72,6 +74,31 @@ export default function SettingsPage() {
             </ul>
           </section>
 
+
+          <section className="px-4 pt-6">
+            <p className="text-[15px] font-bold uppercase tracking-widest mb-2">
+              Tap dictionary
+            </p>
+            <button
+              onClick={() => setTapDictionary(!tapDictionary)}
+              aria-pressed={tapDictionary}
+              className={rowClass}
+            >
+              <div>
+                <p className="text-lg font-bold">Word meanings on tap</p>
+                <p className="text-[15px]">
+                  Tap any Arabic word for its translation. Off loads pages faster.
+                </p>
+              </div>
+              <span
+                className={`text-base font-bold border-2 border-ink rounded-lg px-3 py-1 shrink-0 ${
+                  tapDictionary ? 'bg-ink text-paper' : ''
+                }`}
+              >
+                {tapDictionary ? 'On' : 'Off'}
+              </span>
+            </button>
+          </section>
 
           <section className="px-4 pt-6 pb-8">
             <p className="text-[15px] font-bold uppercase tracking-widest mb-2">
