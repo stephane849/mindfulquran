@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Amiri } from 'next/font/google';
+import { Inter, Scheherazade_New } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/lib/providers';
 import { PageScroll } from '@/components/PageScroll';
+import { ScrollBar } from '@/components/ScrollBar';
 
 const inter = Inter({
   variable: '--font-inter',
@@ -10,8 +11,8 @@ const inter = Inter({
   display: 'swap',
 });
 
-const amiri = Amiri({
-  variable: '--font-amiri',
+const scheherazade = Scheherazade_New({
+  variable: '--font-scheherazade',
   subsets: ['arabic'],
   weight: ['400', '700'],
   display: 'swap',
@@ -30,10 +31,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${amiri.variable} h-full`}>
+    <html lang="en" className={`${inter.variable} ${scheherazade.variable} h-full`}>
       <body className="bg-paper text-ink h-full font-sans">
         <Providers>
           <PageScroll />
+          <ScrollBar />
           {children}
         </Providers>
       </body>

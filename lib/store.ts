@@ -5,13 +5,14 @@ import type { LastRead } from './types';
 
 interface AppStore {
   lastRead: LastRead | null;
-  translationId: number;
+  /** null = Arabic only, no translation */
+  translationId: number | null;
   setLastRead: (data: LastRead) => void;
-  setTranslationId: (id: number) => void;
+  setTranslationId: (id: number | null) => void;
 }
 
-const isValidTranslation = (id: number) =>
-  ENGLISH_TRANSLATIONS.some((t) => t.id === id);
+const isValidTranslation = (id: number | null) =>
+  id === null || ENGLISH_TRANSLATIONS.some((t) => t.id === id);
 
 export const useAppStore = create<AppStore>()(
   persist(
@@ -29,7 +30,7 @@ export const useAppStore = create<AppStore>()(
       // doesn't recognise — reset anything invalid to the default
       migrate: (state) => {
         const s = state as Partial<AppStore>;
-        if (!s.translationId || !isValidTranslation(s.translationId)) {
+        if (s.translationId === undefined || !isValidTranslation(s.translationId)) {
           s.translationId = DEFAULT_TRANSLATION_ID;
         }
         return s as AppStore;

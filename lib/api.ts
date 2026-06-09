@@ -20,14 +20,15 @@ export async function getChapters(): Promise<Chapter[]> {
 export async function getVerses(
   chapterId: number,
   page: number,
-  translationId: number
+  translationId: number | null
 ): Promise<VersesResponse> {
-  return get<VersesResponse>(`/verses/by_chapter/${chapterId}`, {
-    translations: String(translationId),
+  const params: Record<string, string> = {
     fields: 'text_uthmani',
     per_page: '50',
     page: String(page),
-  });
+  };
+  if (translationId !== null) params.translations = String(translationId);
+  return get<VersesResponse>(`/verses/by_chapter/${chapterId}`, params);
 }
 
 // Ids verified against /resources/translations?language=en on api.qurancdn.com

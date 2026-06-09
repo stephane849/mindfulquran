@@ -19,6 +19,22 @@ export default function SettingsPage() {
       <section className="px-4 pt-5">
         <p className="text-xs font-bold uppercase tracking-widest mb-3">Translation</p>
         <ul>
+          <li>
+            <button
+              onClick={() => setTranslationId(null)}
+              className="w-full flex items-center justify-between py-3 divider-dotted text-left active:bg-ink active:text-paper"
+            >
+              <div>
+                <p className="text-sm font-bold">Arabic only</p>
+                <p className="text-xs">No translation shown</p>
+              </div>
+              {translationId === null && (
+                <span className="text-lg font-bold" aria-label="selected">
+                  ✓
+                </span>
+              )}
+            </button>
+          </li>
           {ENGLISH_TRANSLATIONS.map((t) => (
             <li key={t.id}>
               <button

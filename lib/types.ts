@@ -32,7 +32,8 @@ export interface Verse {
   page_number: number;
   juz_number: number;
   text_uthmani: string;
-  translations: VerseTranslation[];
+  /** Absent when no translations param is requested (Arabic-only mode) */
+  translations?: VerseTranslation[];
 }
 
 export interface VersesResponse {

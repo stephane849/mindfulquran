@@ -5,7 +5,7 @@ const BISMILLAH = 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَ
 export function SurahHeader({ chapter }: { chapter: Chapter }) {
   return (
     <div className="px-4 pt-5 pb-4 border-b-2 border-ink text-center">
-      <p className="font-arabic text-3xl mb-1" dir="rtl" lang="ar">
+      <p className="font-arabic text-4xl mb-1" dir="rtl" lang="ar">
         {chapter.name_arabic}
       </p>
       <p className="font-bold text-base">{chapter.name_simple}</p>
@@ -15,7 +15,7 @@ export function SurahHeader({ chapter }: { chapter: Chapter }) {
         {chapter.revelation_place === 'makkah' ? 'Meccan' : 'Medinan'}
       </p>
       {chapter.bismillah_pre && (
-        <p className="font-arabic text-2xl mt-5" dir="rtl" lang="ar">
+        <p className="font-arabic text-3xl mt-5" dir="rtl" lang="ar">
           {BISMILLAH}
         </p>
       )}

@@ -14,7 +14,7 @@ export function SurahListItem({ chapter }: { chapter: Chapter }) {
           {chapter.translated_name.name} &middot; {chapter.verses_count} ayahs
         </p>
       </div>
-      <span className="font-arabic text-xl shrink-0" dir="rtl" lang="ar">
+      <span className="font-arabic text-2xl shrink-0" dir="rtl" lang="ar">
         {chapter.name_arabic}
       </span>
       <span className="shrink-0 text-xl font-bold" aria-hidden>
