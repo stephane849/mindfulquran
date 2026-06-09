@@ -8,6 +8,7 @@ import { TopBar } from '@/components/TopBar';
 import { VerseCard } from '@/components/VerseCard';
 import { BottomSheet } from '@/components/BottomSheet';
 import { useAppStore, type ArabicSize } from '@/lib/store';
+import { getSurahMorphology, decodeMorph, spaceRoot } from '@/lib/morphology';
 import {
   toArabicDigits,
   ayahNumberOf,
@@ -31,7 +32,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
   const loaderRef = useRef<HTMLDivElement>(null);
   const resumedRef = useRef(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [selectedWord, setSelectedWord] = useState<Word | null>(null);
+  const [selected, setSelected] = useState<{ word: Word; verseKey: string } | null>(null);
   // Persisted state differs from the prerendered HTML — gate it until mounted
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -104,6 +105,25 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     [chapters, setLastRead]
   );
 
+  const handleWordTap = useCallback(
+    (word: Word, verseKey: string) => setSelected({ word, verseKey }),
+    []
+  );
+
+  // Grammar data for the selected word's surah (bundled, cached forever)
+  const selectedSurah = selected ? surahNumberOf(selected.verseKey) : null;
+  const { data: morphology } = useQuery({
+    queryKey: ['morphology', selectedSurah],
+    queryFn: () => getSurahMorphology(selectedSurah!),
+    enabled: selectedSurah !== null,
+    staleTime: Infinity,
+  });
+  const morphEntry =
+    selected && morphology
+      ? morphology[`${ayahNumberOf(selected.verseKey)}:${selected.word.position}`]
+      : undefined;
+  const grammar = morphEntry ? decodeMorph(morphEntry) : undefined;
+
   const allVerses = data?.pages.flatMap((p) => p.verses) ?? [];
 
   // Consecutive same-surah runs; a chapter read is always a single group
@@ -168,7 +188,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
               verses={group.verses}
               arabicSize={arabicSize}
               onVisible={handleVerseVisible}
-              onWordTap={tapDictionary ? setSelectedWord : undefined}
+              onWordTap={tapDictionary ? handleWordTap : undefined}
             />
           ) : (
             group.verses.map((verse) => (
@@ -177,7 +197,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
                 verse={verse}
                 onVisible={handleVerseVisible}
                 arabicSize={arabicSize}
-                onWordTap={setSelectedWord}
+                onWordTap={handleWordTap}
               />
             ))
           )}
@@ -258,17 +278,42 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
       </BottomSheet>
 
       {/* Word dictionary */}
-      <BottomSheet open={selectedWord !== null} onClose={() => setSelectedWord(null)}>
-        {selectedWord && (
+      <BottomSheet open={selected !== null} onClose={() => setSelected(null)}>
+        {selected && (
           <div className="text-center py-4">
             <p className="font-arabic text-5xl leading-loose" dir="rtl" lang="ar">
-              {selectedWord.text_uthmani}
+              {selected.word.text_uthmani}
             </p>
-            {selectedWord.transliteration?.text && (
-              <p className="text-lg italic mt-1">{selectedWord.transliteration.text}</p>
+            {selected.word.transliteration?.text && (
+              <p className="text-lg italic mt-1">{selected.word.transliteration.text}</p>
             )}
-            {selectedWord.translation?.text && (
-              <p className="text-xl font-bold mt-2">{selectedWord.translation.text}</p>
+            {selected.word.translation?.text && (
+              <p className="text-xl font-bold mt-2">{selected.word.translation.text}</p>
+            )}
+            {grammar && (
+              <div className="mt-4 pt-3 border-t-2 border-ink text-left">
+                <p className="text-[15px] font-bold uppercase tracking-widest">Grammar</p>
+                <div className="flex items-baseline justify-between mt-2">
+                  <span className="text-lg">{grammar.pos}</span>
+                  {grammar.root && (
+                    <span className="font-arabic text-2xl" dir="rtl" lang="ar">
+                      {spaceRoot(grammar.root)}
+                      <span className="text-base">&nbsp;:جذر</span>
+                    </span>
+                  )}
+                </div>
+                {grammar.parse.length > 0 && (
+                  <p className="text-base mt-1">{grammar.parse.join(' · ')}</p>
+                )}
+                {grammar.lemma && (
+                  <p className="text-base mt-1">
+                    Lemma:{' '}
+                    <span className="font-arabic text-xl" dir="rtl" lang="ar">
+                      {grammar.lemma}
+                    </span>
+                  </p>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -287,7 +332,7 @@ function MushafGroup({
   verses: Verse[];
   arabicSize: number;
   onVisible: (v: Verse) => void;
-  onWordTap?: (w: Word) => void;
+  onWordTap?: (w: Word, verseKey: string) => void;
 }) {
   const size = clampArabicSize(arabicSize);
   return (
@@ -318,7 +363,7 @@ function MushafVerse({
   verse: Verse;
   markerClass: string;
   onVisible: (v: Verse) => void;
-  onWordTap?: (w: Word) => void;
+  onWordTap?: (w: Word, verseKey: string) => void;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
 
@@ -343,17 +388,47 @@ function MushafVerse({
         ? words.map((word, i) => (
             <span key={word.id}>
               {i > 0 && ' '}
-              <button
-                onClick={() => onWordTap(word)}
-                className="active:bg-ink active:text-paper"
-              >
-                {word.text_uthmani}
-              </button>
+              <LongPressWord
+                word={word}
+                onLookup={(w) => onWordTap(w, verse.verse_key)}
+              />
             </span>
           ))
         : verse.text_uthmani}
       <span className={markerClass}> ﴿{toArabicDigits(ayahNumberOf(verse.verse_key))}﴾ </span>
     </span>
+  );
+}
+
+// Mushaf flow keeps reading taps inert: only a deliberate longer press
+// (400ms, without scrolling away) opens the dictionary
+function LongPressWord({
+  word,
+  onLookup,
+}: {
+  word: Word;
+  onLookup: (w: Word) => void;
+}) {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const start = () => {
+    timer.current = setTimeout(() => onLookup(word), 400);
+  };
+  const cancel = () => {
+    if (timer.current) clearTimeout(timer.current);
+  };
+
+  return (
+    <button
+      onPointerDown={start}
+      onPointerUp={cancel}
+      onPointerLeave={cancel}
+      onPointerCancel={cancel}
+      onContextMenu={(e) => e.preventDefault()}
+      className="active:bg-ink active:text-paper"
+    >
+      {word.text_uthmani}
+    </button>
   );
 }
 
@@ -380,7 +455,7 @@ function VisibleVerseCard({
   verse: Verse;
   onVisible: (v: Verse) => void;
   arabicSize: number;
-  onWordTap: (w: Word) => void;
+  onWordTap: (w: Word, verseKey: string) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 

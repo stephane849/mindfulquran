@@ -10,7 +10,7 @@ import {
 interface Props {
   verse: Verse;
   arabicSize?: number;
-  onWordTap?: (word: Word) => void;
+  onWordTap?: (word: Word, verseKey: string) => void;
   ref?: React.Ref<HTMLDivElement>;
 }
 
@@ -32,7 +32,7 @@ export function VerseCard({ verse, arabicSize = 1, onWordTap, ref }: Props) {
             <span key={word.id}>
               {i > 0 && ' '}
               <button
-                onClick={() => onWordTap(word)}
+                onClick={() => onWordTap(word, verse.verse_key)}
                 className="active:bg-ink active:text-paper"
               >
                 {word.text_uthmani}

@@ -126,6 +126,11 @@ export default function SettingsPage() {
               ))}
             </ul>
           </section>
+
+          <footer className="px-4 pb-8 text-[13px] leading-relaxed">
+            Quran text and translations from Quran.com. Grammar data from the{' '}
+            Quranic Arabic Corpus (corpus.quran.com), GNU GPL.
+          </footer>
         </>
       )}
     </div>
