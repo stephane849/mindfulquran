@@ -4,12 +4,20 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getChapters } from '@/lib/api';
-import { useAppStore } from '@/lib/store';
+import { useAppStore, type BrowseMode } from '@/lib/store';
 import { LastReadBanner } from '@/components/LastReadBanner';
 import { SurahListItem } from '@/components/SurahListItem';
+import { Tabs } from '@/components/Tabs';
+
+const BROWSE_TABS: { value: BrowseMode; label: string }[] = [
+  { value: 'surah', label: 'Surah' },
+  { value: 'juz', label: 'Juz' },
+  { value: 'hizb', label: 'Hizb' },
+];
 
 export default function HomePage() {
   const browseMode = useAppStore((s) => s.browseMode);
+  const setBrowseMode = useAppStore((s) => s.setBrowseMode);
   // Persisted browse mode differs from prerendered HTML — wait for mount
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -28,47 +36,59 @@ export default function HomePage() {
             القرآن الكريم
           </p>
         </div>
-        <Link
-          href="/settings"
-          className="text-base font-bold border-2 border-ink rounded-lg px-3 py-2 active:bg-ink active:text-paper"
-        >
-          Settings
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/search"
+            className="text-base font-bold border-2 border-ink rounded-lg px-3 py-2 active:bg-ink active:text-paper"
+          >
+            Search
+          </Link>
+          <Link
+            href="/settings"
+            className="text-base font-bold border-2 border-ink rounded-lg px-3 py-2 active:bg-ink active:text-paper"
+          >
+            Settings
+          </Link>
+        </div>
       </header>
 
       <LastReadBanner />
 
-      {!mounted && (
+      {!mounted ? (
         <p className="px-4 py-8 text-center text-base">Loading…</p>
-      )}
-
-      {mounted && browseMode === 'surah' && (
+      ) : (
         <>
-          {isLoading && (
-            <p className="px-4 py-8 text-center text-base">Loading surahs…</p>
+          <Tabs tabs={BROWSE_TABS} active={browseMode} onChange={setBrowseMode} />
+
+          {browseMode === 'surah' && (
+            <>
+              {isLoading && (
+                <p className="px-4 py-8 text-center text-base">Loading surahs…</p>
+              )}
+              {error && (
+                <div className="px-4 py-8 text-center text-base">
+                  <p className="font-bold">Could not load surahs.</p>
+                  <p className="mt-2">
+                    {error instanceof Error ? error.message : String(error)}
+                  </p>
+                </div>
+              )}
+              {chapters && (
+                <ol>
+                  {chapters.map((chapter) => (
+                    <li key={chapter.id}>
+                      <SurahListItem chapter={chapter} />
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </>
           )}
-          {error && (
-            <div className="px-4 py-8 text-center text-base">
-              <p className="font-bold">Could not load surahs.</p>
-              <p className="mt-2">
-                {error instanceof Error ? error.message : String(error)}
-              </p>
-            </div>
-          )}
-          {chapters && (
-            <ol>
-              {chapters.map((chapter) => (
-                <li key={chapter.id}>
-                  <SurahListItem chapter={chapter} />
-                </li>
-              ))}
-            </ol>
-          )}
+
+          {browseMode === 'juz' && <DivisionList kind="juz" count={30} />}
+          {browseMode === 'hizb' && <DivisionList kind="hizb" count={60} />}
         </>
       )}
-
-      {mounted && browseMode === 'juz' && <DivisionList kind="juz" count={30} />}
-      {mounted && browseMode === 'hizb' && <DivisionList kind="hizb" count={60} />}
     </div>
   );
 }

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#ffffff"/>
+  <g stroke="#000000" stroke-width="30" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <!-- front cover with rounded spine on the left -->
+    <path d="M388 268 H706 A28 28 0 0 1 734 296 V668 A28 28 0 0 1 706 696 H388 A78 78 0 0 1 310 618 V346 A78 78 0 0 1 388 268 Z"/>
+    <!-- bottom page stack -->
+    <path d="M330 672 A46 46 0 0 0 330 756 H706 A28 28 0 0 0 734 728 V696"/>
+    <path d="M388 714 H660"/>
+    <!-- rub el hizb eight-point star -->
+    <polygon points="512.0,344.0 543.4,386.2 595.4,378.6 587.8,430.6 630.0,462.0 587.8,493.4 595.4,545.4 543.4,537.8 512.0,580.0 480.6,537.8 428.6,545.4 436.2,493.4 394.0,462.0 436.2,430.6 428.6,378.6 480.6,386.2"/>
+  </g>
+</svg>

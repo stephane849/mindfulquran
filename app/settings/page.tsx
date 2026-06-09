@@ -2,14 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { TopBar } from '@/components/TopBar';
-import { useAppStore, type BrowseMode, type ArabicSize } from '@/lib/store';
+import { useAppStore, type ArabicSize } from '@/lib/store';
 import { ENGLISH_TRANSLATIONS } from '@/lib/api';
-
-const BROWSE_MODES: { value: BrowseMode; label: string; detail: string }[] = [
-  { value: 'surah', label: 'Surah', detail: '114 chapters' },
-  { value: 'juz', label: 'Juz', detail: '30 parts' },
-  { value: 'hizb', label: 'Hizb', detail: '60 half-parts' },
-];
 
 const ARABIC_SIZES: { value: ArabicSize; label: string }[] = [
   { value: 0, label: 'Small' },
@@ -30,11 +24,9 @@ export default function SettingsPage() {
   const {
     translationId,
     showTranslation,
-    browseMode,
     arabicSize,
     setTranslationId,
     setShowTranslation,
-    setBrowseMode,
     setArabicSize,
   } = useAppStore();
   // Persisted state differs from prerendered HTML — wait for mount
@@ -80,24 +72,6 @@ export default function SettingsPage() {
             </ul>
           </section>
 
-          <section className="px-4 pt-6">
-            <p className="text-[15px] font-bold uppercase tracking-widest mb-2">
-              Browse by
-            </p>
-            <ul>
-              {BROWSE_MODES.map((m) => (
-                <li key={m.value}>
-                  <button onClick={() => setBrowseMode(m.value)} className={rowClass}>
-                    <div>
-                      <p className="text-lg font-bold">{m.label}</p>
-                      <p className="text-[15px]">{m.detail}</p>
-                    </div>
-                    {browseMode === m.value && <Check />}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
 
           <section className="px-4 pt-6 pb-8">
             <p className="text-[15px] font-bold uppercase tracking-widest mb-2">

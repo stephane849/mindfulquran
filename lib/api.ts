@@ -29,7 +29,8 @@ export async function getVersesBy(
   source: ReaderSource,
   id: number,
   page: number,
-  translationId: number | null
+  translationId: number | null,
+  withWords = false
 ): Promise<VersesResponse> {
   const params: Record<string, string> = {
     fields: 'text_uthmani',
@@ -37,7 +38,20 @@ export async function getVersesBy(
     page: String(page),
   };
   if (translationId !== null) params.translations = String(translationId);
+  if (withWords) {
+    params.words = 'true';
+    params.word_fields = 'text_uthmani';
+  }
   return get<VersesResponse>(`/verses/${SOURCE_PATH[source]}/${id}`, params);
+}
+
+export async function searchQuran(query: string, page: number) {
+  return get<import('./types').SearchResponse>('/search', {
+    q: query,
+    size: '20',
+    page: String(page),
+    language: 'en',
+  });
 }
 
 // Ids verified against /resources/translations?language=en on api.qurancdn.com

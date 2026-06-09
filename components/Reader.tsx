@@ -2,11 +2,12 @@
 
 import { Fragment, useEffect, useRef, useState, useCallback } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { getChapters, getVersesBy, type ReaderSource } from '@/lib/api';
+import { getChapters, getVersesBy, ENGLISH_TRANSLATIONS, type ReaderSource } from '@/lib/api';
 import { SurahHeader } from '@/components/SurahHeader';
 import { TopBar } from '@/components/TopBar';
 import { VerseCard } from '@/components/VerseCard';
-import { useAppStore } from '@/lib/store';
+import { BottomSheet } from '@/components/BottomSheet';
+import { useAppStore, type ArabicSize } from '@/lib/store';
 import {
   toArabicDigits,
   ayahNumberOf,
@@ -15,16 +16,20 @@ import {
   ARABIC_TEXT_SIZES,
   ARABIC_MARKER_SIZES,
 } from '@/lib/arabic';
-import type { Chapter, Verse } from '@/lib/types';
+import type { Chapter, Verse, Word } from '@/lib/types';
 
 export function Reader({ source, id }: { source: ReaderSource; id: number }) {
   const translationId = useAppStore((s) => s.translationId);
   const showTranslation = useAppStore((s) => s.showTranslation);
   const setShowTranslation = useAppStore((s) => s.setShowTranslation);
+  const setTranslationId = useAppStore((s) => s.setTranslationId);
   const arabicSize = useAppStore((s) => s.arabicSize);
+  const setArabicSize = useAppStore((s) => s.setArabicSize);
   const setLastRead = useAppStore((s) => s.setLastRead);
   const loaderRef = useRef<HTMLDivElement>(null);
   const resumedRef = useRef(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [selectedWord, setSelectedWord] = useState<Word | null>(null);
   // Persisted state differs from the prerendered HTML — gate it until mounted
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -43,11 +48,14 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
       : `Hizb ${id}`;
 
   const effectiveTranslation = mounted && showTranslation ? translationId : null;
+  // Word-by-word glosses power the tap dictionary — card mode only
+  const withWords = effectiveTranslation !== null;
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
     useInfiniteQuery({
-      queryKey: ['verses', source, id, effectiveTranslation],
-      queryFn: ({ pageParam }) => getVersesBy(source, id, pageParam, effectiveTranslation),
+      queryKey: ['verses', source, id, effectiveTranslation, withWords],
+      queryFn: ({ pageParam }) =>
+        getVersesBy(source, id, pageParam, effectiveTranslation, withWords),
       initialPageParam: 1,
       getNextPageParam: (lastPage) => lastPage.pagination?.next_page ?? undefined,
       enabled: mounted,
@@ -113,15 +121,24 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
         title={title}
         right={
           mounted ? (
-            <button
-              onClick={() => setShowTranslation(!showTranslation)}
-              aria-pressed={showTranslation}
-              className={`text-base font-bold border-2 border-ink rounded-lg px-3 py-1 ${
-                showTranslation ? 'bg-ink text-paper' : 'bg-paper text-ink'
-              }`}
-            >
-              EN
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSettingsOpen(true)}
+                aria-label="Reading settings"
+                className="text-base font-bold border-2 border-ink rounded-lg px-3 py-1"
+              >
+                Aa
+              </button>
+              <button
+                onClick={() => setShowTranslation(!showTranslation)}
+                aria-pressed={showTranslation}
+                className={`text-base font-bold border-2 border-ink rounded-lg px-3 py-1 ${
+                  showTranslation ? 'bg-ink text-paper' : 'bg-paper text-ink'
+                }`}
+              >
+                EN
+              </button>
+            </div>
           ) : undefined
         }
       />
@@ -157,6 +174,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
                 verse={verse}
                 onVisible={handleVerseVisible}
                 arabicSize={arabicSize}
+                onWordTap={setSelectedWord}
               />
             ))
           )}
@@ -170,6 +188,73 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
           ? `· End of ${source === 'chapter' ? 'surah' : source} ·`
           : null}
       </div>
+
+      {/* Quick reading settings */}
+      <BottomSheet open={settingsOpen} onClose={() => setSettingsOpen(false)}>
+        <p className="text-[15px] font-bold uppercase tracking-widest mt-3 mb-2">
+          Arabic text size
+        </p>
+        <div className="flex gap-2">
+          {([0, 1, 2, 3] as ArabicSize[]).map((s) => (
+            <button
+              key={s}
+              onClick={() => setArabicSize(s)}
+              className={`flex-1 h-12 border-2 border-ink rounded-lg font-arabic ${
+                ['text-lg', 'text-xl', 'text-2xl', 'text-3xl'][s]
+              } ${arabicSize === s ? 'bg-ink text-paper' : ''}`}
+              dir="rtl"
+              lang="ar"
+            >
+              ع
+            </button>
+          ))}
+        </div>
+
+        <p className="text-[15px] font-bold uppercase tracking-widest mt-5 mb-2">
+          Translation
+        </p>
+        <ul>
+          <li>
+            <button
+              onClick={() => setShowTranslation(false)}
+              className="w-full flex items-center justify-between py-3 divider-dotted text-left active:bg-ink active:text-paper"
+            >
+              <span className="text-lg font-bold">Arabic only</span>
+              {!showTranslation && <span className="text-xl font-bold">✓</span>}
+            </button>
+          </li>
+          {ENGLISH_TRANSLATIONS.map((t) => (
+            <li key={t.id}>
+              <button
+                onClick={() => setTranslationId(t.id)}
+                className="w-full flex items-center justify-between py-3 divider-dotted text-left active:bg-ink active:text-paper"
+              >
+                <span className="text-lg font-bold">{t.name}</span>
+                {showTranslation && translationId === t.id && (
+                  <span className="text-xl font-bold">✓</span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </BottomSheet>
+
+      {/* Word dictionary */}
+      <BottomSheet open={selectedWord !== null} onClose={() => setSelectedWord(null)}>
+        {selectedWord && (
+          <div className="text-center py-4">
+            <p className="font-arabic text-5xl leading-loose" dir="rtl" lang="ar">
+              {selectedWord.text_uthmani}
+            </p>
+            {selectedWord.transliteration?.text && (
+              <p className="text-lg italic mt-1">{selectedWord.transliteration.text}</p>
+            )}
+            {selectedWord.translation?.text && (
+              <p className="text-xl font-bold mt-2">{selectedWord.translation.text}</p>
+            )}
+          </div>
+        )}
+      </BottomSheet>
     </div>
   );
 }
@@ -253,10 +338,12 @@ function VisibleVerseCard({
   verse,
   onVisible,
   arabicSize,
+  onWordTap,
 }: {
   verse: Verse;
   onVisible: (v: Verse) => void;
   arabicSize: number;
+  onWordTap: (w: Word) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -273,5 +360,5 @@ function VisibleVerseCard({
     return () => obs.disconnect();
   }, [verse, onVisible]);
 
-  return <VerseCard ref={ref} verse={verse} arabicSize={arabicSize} />;
+  return <VerseCard ref={ref} verse={verse} arabicSize={arabicSize} onWordTap={onWordTap} />;
 }

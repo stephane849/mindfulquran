@@ -34,6 +34,35 @@ export interface Verse {
   text_uthmani: string;
   /** Absent when no translations param is requested (Arabic-only mode) */
   translations?: VerseTranslation[];
+  /** Present when words=true is requested (word-by-word dictionary) */
+  words?: Word[];
+}
+
+export interface Word {
+  id: number;
+  position: number;
+  /** 'word' for Arabic words, 'end' for the ayah marker */
+  char_type_name: string;
+  text_uthmani: string;
+  translation?: { text: string; language_name: string };
+  transliteration?: { text: string | null; language_name: string };
+}
+
+export interface SearchResult {
+  verse_key: string;
+  verse_id: number;
+  text: string;
+  translations?: { text: string; resource_id: number; name: string }[];
+}
+
+export interface SearchResponse {
+  search: {
+    query: string;
+    total_results: number;
+    current_page: number;
+    total_pages: number;
+    results: SearchResult[];
+  };
 }
 
 export interface VersesResponse {
