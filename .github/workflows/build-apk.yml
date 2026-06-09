@@ -7,6 +7,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Tag for a full release (e.g. v1.0.0); empty = alpha pre-release'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -32,7 +37,11 @@ jobs:
       - name: Release metadata
         id: meta
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+          if [[ -n "${{ github.event.inputs.release_tag }}" ]]; then
+            echo "tag=${{ github.event.inputs.release_tag }}" >> "$GITHUB_OUTPUT"
+            echo "name=Mindful Quran ${{ github.event.inputs.release_tag }}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
             echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
             echo "name=Mindful Quran $GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
