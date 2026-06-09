@@ -36,6 +36,17 @@ jobs:
             head -c 300 /tmp/body; echo
           done
 
+      - name: Probe search and word-by-word
+        run: |
+          echo "================ search ================"
+          curl -s -o /tmp/body -w "STATUS %{http_code}\n" -H "User-Agent: Mozilla/5.0" \
+            "https://api.qurancdn.com/api/v4/search?q=mercy&size=3&language=en" || true
+          head -c 700 /tmp/body; echo
+          echo "================ words=true ================"
+          curl -s -o /tmp/body -w "STATUS %{http_code}\n" -H "User-Agent: Mozilla/5.0" \
+            "https://api.qurancdn.com/api/v4/verses/by_chapter/1?words=true&word_fields=text_uthmani&translations=20&per_page=1&page=1" || true
+          head -c 900 /tmp/body; echo
+
       - name: Find Abdel Haleem translation id
         run: |
           curl -s -H "User-Agent: Mozilla/5.0" \
