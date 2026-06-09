@@ -1,0 +1,72 @@
+name: Build & Release APK
+
+on:
+  push:
+    branches:
+      - claude/modest-archimedes-w6t940
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js static export
+        run: npm run build
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Sync web assets
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+
+      - name: Stage APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk mindful-quran-v0.1-alpha.${{ github.run_number }}.apk
+
+      - name: Create pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.0-alpha.${{ github.run_number }}
+          name: Mindful Quran v0.1.0-alpha.${{ github.run_number }}
+          prerelease: true
+          body: |
+            ## Mindful Quran — Alpha Pre-release
+
+            Debug APK targeting the Mudita Kompakt (E-ink 480×800, Android).
+
+            **Install:** download the `.apk` below and sideload onto your Mudita Kompakt.
+
+            ### What's in this build
+            - Surah list home with "Continue Reading" last-read banner
+            - Verse reader — Arabic (Amiri) + English translation side by side
+            - Infinite scroll with auto-pagination (50 verses/page)
+            - Translation switcher: Sahih International · Clear Quran · Pickthall · Yusuf Ali
+            - Last-read position auto-tracked via IntersectionObserver, persisted to localStorage
+            - Zero animations, no shadows/gradients — E-ink safe
+          files: mindful-quran-v0.1-alpha.${{ github.run_number }}.apk
