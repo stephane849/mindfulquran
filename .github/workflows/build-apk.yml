@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - claude/modest-archimedes-w6t940
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
@@ -25,6 +27,20 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
+
+      # Tag pushes (v*) publish a full release; branch pushes publish alpha pre-releases
+      - name: Release metadata
+        id: meta
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+            echo "name=Mindful Quran $GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=v1.0.0-alpha.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+            echo "name=Mindful Quran v1.0.0-alpha.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Install dependencies
         run: npm ci
@@ -53,26 +69,36 @@ jobs:
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
 
       - name: Stage APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk mindful-quran-v0.1-alpha.${{ github.run_number }}.apk
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk "mindful-quran-${{ steps.meta.outputs.tag }}.apk"
 
-      - name: Create pre-release
+      - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.0-alpha.${{ github.run_number }}
-          name: Mindful Quran v0.1.0-alpha.${{ github.run_number }}
-          prerelease: true
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.name }}
+          prerelease: ${{ steps.meta.outputs.prerelease }}
           body: |
-            ## Mindful Quran — Alpha Pre-release
+            ## Mindful Quran
 
-            Debug APK targeting the Mudita Kompakt (E-ink 480×800, Android).
+            A calm, distraction-free Quran reader designed for the Mudita
+            Kompakt (E Ink, 480×800), following Mudita Mindful Design.
 
-            **Install:** download the `.apk` below and sideload onto your Mudita Kompakt.
+            **Install:** download the `.apk` below and sideload it.
 
-            ### What's in this build
-            - Surah list home with "Continue Reading" last-read banner
-            - Verse reader — Arabic (Amiri) + English translation side by side
-            - Infinite scroll with auto-pagination (50 verses/page)
-            - Translation switcher: Sahih International · Clear Quran · Pickthall · Yusuf Ali
-            - Last-read position auto-tracked via IntersectionObserver, persisted to localStorage
-            - Zero animations, no shadows/gradients — E-ink safe
-          files: mindful-quran-v0.1-alpha.${{ github.run_number }}.apk
+            ### Features
+            - Browse by Surah, Juz, or Hizb; full-text search
+            - Arabic (Scheherazade New) with English translation —
+              M.A.S. Abdel Haleem default; Saheeh International,
+              Yusuf Ali, Al-Hilali & Khan available
+            - Continuous mushaf mode when translation is off
+            - Tap dictionary: per-word gloss, transliteration, and full
+              grammar (root, part of speech, parse) from the Quranic
+              Arabic Corpus — offline; long-press in mushaf mode
+            - Continue Reading resumes at your last ayah
+            - Volume buttons page up/down; MMD scroll rail with
+              tap/hold chevrons; adjustable Arabic text size
+            - Pure black-on-white, zero animations — E Ink safe
+
+            Quran text and translations from Quran.com. Grammar data from
+            the Quranic Arabic Corpus (corpus.quran.com), GNU GPL.
+          files: mindful-quran-${{ steps.meta.outputs.tag }}.apk
