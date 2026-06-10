@@ -68,8 +68,15 @@ export default function SearchPage() {
       )}
 
       {data && (
-        <p className="px-4 py-3 text-[15px] border-b border-ink divider-dotted">
-          {total} result{total === 1 ? '' : 's'} for &ldquo;{query}&rdquo;
+        <p className="px-4 py-3 text-[15px] divider-dotted">
+          {(() => {
+            const mode = data.pages[0]?.search.mode;
+            if (mode === 'root') {
+              const spaced = query.split('').join(' · ');
+              return <><span className="font-bold">Root</span> {spaced} — {total} verse{total === 1 ? '' : 's'}</>;
+            }
+            return <>{total} result{total === 1 ? '' : 's'} for &ldquo;{query}&rdquo;</>;
+          })()}
         </p>
       )}
 

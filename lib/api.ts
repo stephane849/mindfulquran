@@ -42,12 +42,23 @@ type OfflineIndex = {
 
 type SearchEntry = { k: string; a: string; t: string };
 
+// Bare Arabic consonants (U+0621–U+064A); matches a root query typed
+// without any diacritics, e.g. "علم" to find all علم-root verses.
+const ROOT_RE = /^[ء-ي]{2,5}$/;
+
+// Strip harakat, tatweel, and small alef so bare-letter queries match
+// diacritized Uthmani text in the search corpus.
+function stripDiacritics(s: string): string {
+  return s.replace(/[ً-ٟـٰ]/g, '');
+}
+
 // ─── In-memory cache (module-level singletons) ────────────────────────────────
 
 let _chapters: Chapter[] | null = null;
 const _surahs  = new Map<number, OfflineVerse[]>();
 let _index:  OfflineIndex | null = null;
 let _search: SearchEntry[]  | null = null;
+let _roots:  Record<string, string[]> | null = null;
 
 // ─── Loaders ──────────────────────────────────────────────────────────────────
 
@@ -78,6 +89,13 @@ async function loadSearch(): Promise<SearchEntry[]> {
     _search = await (await fetch('/quran/search.json')).json();
   }
   return _search!;
+}
+
+async function loadRoots(): Promise<Record<string, string[]>> {
+  if (!_roots) {
+    _roots = await (await fetch('/quran/roots.json')).json();
+  }
+  return _roots!;
 }
 
 // ─── Pagination helper ────────────────────────────────────────────────────────
@@ -163,19 +181,54 @@ export async function getVersesBy(
 }
 
 export async function searchQuran(query: string, pageNum: number): Promise<SearchResponse> {
-  const entries = await loadSearch();
-  const q = query.trim().toLowerCase();
-  const hits = entries.filter(e => e.a.includes(q) || e.t.toLowerCase().includes(q));
-
+  const q = query.trim();
   const PER = 20;
-  const from    = (pageNum - 1) * PER;
+  const from = (pageNum - 1) * PER;
+
+  // Root search: bare Arabic letters (no diacritics), 2–5 chars
+  if (ROOT_RE.test(q)) {
+    const rootMap = await loadRoots();
+    const verseKeys = rootMap[q];
+    if (verseKeys && verseKeys.length > 0) {
+      const entries  = await loadSearch();
+      const byKey    = new Map(entries.map(e => [e.k, e]));
+      const results: SearchResult[] = verseKeys
+        .slice(from, from + PER)
+        .map(key => byKey.get(key))
+        .filter((e): e is SearchEntry => e !== undefined)
+        .map(e => ({
+          verse_key: e.k,
+          verse_id:  0,
+          text:      e.a,
+          translations: [{ text: e.t, resource_id: 85, name: 'M.A.S. Abdel Haleem' }],
+        }));
+      return {
+        search: {
+          query,
+          total_results: verseKeys.length,
+          current_page:  pageNum,
+          total_pages:   Math.ceil(verseKeys.length / PER),
+          results,
+          mode: 'root',
+        },
+      };
+    }
+    // Unknown root — fall through to text search
+  }
+
+  // Text search: strip diacritics so bare-letter queries match Uthmani text
+  const entries  = await loadSearch();
+  const qStrip   = stripDiacritics(q);
+  const qLower   = q.toLowerCase();
+  const hits = entries.filter(
+    e => stripDiacritics(e.a).includes(qStrip) || e.t.toLowerCase().includes(qLower)
+  );
   const results: SearchResult[] = hits.slice(from, from + PER).map(e => ({
     verse_key: e.k,
     verse_id:  0,
     text:      e.a,
     translations: [{ text: e.t, resource_id: 85, name: 'M.A.S. Abdel Haleem' }],
   }));
-
   return {
     search: {
       query,
@@ -183,6 +236,7 @@ export async function searchQuran(query: string, pageNum: number): Promise<Searc
       current_page:  pageNum,
       total_pages:   Math.ceil(hits.length / PER),
       results,
+      mode: 'text',
     },
   };
 }

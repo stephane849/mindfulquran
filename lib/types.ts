@@ -62,6 +62,8 @@ export interface SearchResponse {
     current_page: number;
     total_pages: number;
     results: SearchResult[];
+    /** 'root' when query matched a Quranic root; 'text' for substring search */
+    mode: 'root' | 'text';
   };
 }
 
