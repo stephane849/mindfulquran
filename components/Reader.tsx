@@ -399,12 +399,16 @@ function MushafVerse({
     <span ref={ref} id={`verse-${verse.verse_number}`}>
       {words?.length && onWordTap
         ? words.map((word, i) => (
-            <LongPressWord
-              key={word.id}
-              word={word}
-              onLookup={(w) => onWordTap(w, verse.verse_key)}
-              addLeadingSpace={i > 0}
-            />
+            <Fragment key={word.id}>
+              {i > 0 && ' '}
+              <button
+                onClick={() => onWordTap(word, verse.verse_key)}
+                onContextMenu={(e) => e.preventDefault()}
+                className="inline select-none [user-select:none] [-webkit-user-select:none]"
+              >
+                {word.text_uthmani}
+              </button>
+            </Fragment>
           ))
         : verse.text_uthmani}
       <span className={markerClass}> ﴿{toArabicDigits(ayahNumberOf(verse.verse_key))}﴾ </span>
@@ -412,43 +416,6 @@ function MushafVerse({
   );
 }
 
-// Mushaf flow keeps reading taps inert: only a deliberate longer press
-// (400ms, without scrolling away) opens the dictionary
-function LongPressWord({
-  word,
-  onLookup,
-  addLeadingSpace,
-}: {
-  word: Word;
-  onLookup: (w: Word) => void;
-  addLeadingSpace?: boolean;
-}) {
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const start = (e: React.PointerEvent) => {
-    e.preventDefault();
-    timer.current = setTimeout(() => onLookup(word), 400);
-  };
-  const cancel = () => {
-    if (timer.current) clearTimeout(timer.current);
-  };
-
-  return (
-    <>
-      {addLeadingSpace && ' '}
-      <button
-        onPointerDown={start}
-        onPointerUp={cancel}
-        onPointerLeave={cancel}
-        onPointerCancel={cancel}
-        onContextMenu={(e) => e.preventDefault()}
-        className="inline select-none [user-select:none] [-webkit-user-select:none]"
-      >
-        {word.text_uthmani}
-      </button>
-    </>
-  );
-}
 
 function SurahDivider({ chapter }: { chapter?: Chapter }) {
   if (!chapter) return null;
