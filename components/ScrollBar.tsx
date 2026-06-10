@@ -100,7 +100,12 @@ export function ScrollBar() {
   }, [update]);
 
   const page = (dir: 'up' | 'down') => {
-    const step = Math.round(window.innerHeight * 0.85);
+    const el = document.querySelector('span[data-verse-key]') as HTMLElement | null;
+    let step = Math.round(window.innerHeight * 0.85);
+    if (el) {
+      const lh = parseFloat(getComputedStyle(el).lineHeight);
+      if (lh > 4) step = Math.max(lh, window.innerHeight - lh);
+    }
     window.scrollBy({ top: dir === 'down' ? step : -step, behavior: 'instant' });
   };
   const jump = (dir: 'up' | 'down') => {

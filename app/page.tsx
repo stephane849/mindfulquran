@@ -8,6 +8,7 @@ import { useAppStore, type BrowseMode } from '@/lib/store';
 import { LastReadBanner } from '@/components/LastReadBanner';
 import { SurahListItem } from '@/components/SurahListItem';
 import { Tabs } from '@/components/Tabs';
+import { AwradSection } from '@/components/AwradSection';
 
 const BROWSE_TABS: { value: BrowseMode; label: string }[] = [
   { value: 'surah', label: 'Surah' },
@@ -93,6 +94,7 @@ export default function HomePage() {
 
           {browseMode === 'juz' && <DivisionList kind="juz" count={30} />}
           {browseMode === 'hizb' && <DivisionList kind="hizb" count={60} />}
+          <AwradSection chapters={chapters} />
         </>
       )}
     </div>

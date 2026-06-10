@@ -9,6 +9,8 @@ export type ArabicSize = 0 | 1 | 2 | 3;
 
 interface AppStore {
   lastRead: LastRead | null;
+  /** Separate tracking for Awrad reads — never overwrites main lastRead */
+  awradLastRead: LastRead | null;
   /** Which translation to use when translation display is on */
   translationId: number;
   /** Toggled by the EN button in the reader and "Arabic only" in settings */
@@ -18,6 +20,7 @@ interface AppStore {
   /** Tappable words with glosses; off skips the heavier word-by-word fetch */
   tapDictionary: boolean;
   setLastRead: (data: LastRead) => void;
+  setAwradLastRead: (data: LastRead) => void;
   setTranslationId: (id: number) => void;
   setShowTranslation: (show: boolean) => void;
   setBrowseMode: (mode: BrowseMode) => void;
@@ -32,12 +35,14 @@ export const useAppStore = create<AppStore>()(
   persist(
     (set) => ({
       lastRead: null,
+      awradLastRead: null,
       translationId: DEFAULT_TRANSLATION_ID,
       showTranslation: true,
       browseMode: 'surah',
       arabicSize: 1,
       tapDictionary: true,
       setLastRead: (lastRead) => set({ lastRead }),
+      setAwradLastRead: (awradLastRead) => set({ awradLastRead }),
       setTranslationId: (translationId) =>
         set({ translationId, showTranslation: true }),
       setShowTranslation: (showTranslation) => set({ showTranslation }),
@@ -48,11 +53,10 @@ export const useAppStore = create<AppStore>()(
     {
       name: 'mindful-quran',
       storage: createJSONStorage(() => localStorage),
-      version: 3,
+      version: 4,
       migrate: (state, version) => {
         const s = state as Record<string, unknown>;
         if (version < 2) {
-          // v1 used translationId: null for Arabic-only; v0 used foreign ids
           if (s.translationId === null) {
             s.translationId = DEFAULT_TRANSLATION_ID;
             s.showTranslation = false;
@@ -61,8 +65,10 @@ export const useAppStore = create<AppStore>()(
           }
         }
         if (version < 3 && s.translationId === 20) {
-          // 20 (Saheeh Int'l) was only ever the old default — move to Abdel Haleem
           s.translationId = DEFAULT_TRANSLATION_ID;
+        }
+        if (version < 4) {
+          s.awradLastRead = null;
         }
         return s as unknown as AppStore;
       },

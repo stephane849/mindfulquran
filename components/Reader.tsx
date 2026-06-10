@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useRef, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { getChapters, getVersesBy, ENGLISH_TRANSLATIONS, type ReaderSource } from '@/lib/api';
 import { SurahHeader } from '@/components/SurahHeader';
@@ -19,6 +20,20 @@ import {
 } from '@/lib/arabic';
 import type { Chapter, Verse, Word } from '@/lib/types';
 
+declare global {
+  interface Window {
+    __readerEndState?: {
+      source: string;
+      id: number;
+      done: boolean;
+      maxId: number;
+    };
+  }
+}
+
+const MAX_IDS: Record<string, number> = { chapter: 114, juz: 30, hizb: 60 };
+const READING_RATE = 20; // verses per minute
+
 export function Reader({ source, id }: { source: ReaderSource; id: number }) {
   const translationId = useAppStore((s) => s.translationId);
   const showTranslation = useAppStore((s) => s.showTranslation);
@@ -29,13 +44,25 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
   const tapDictionary = useAppStore((s) => s.tapDictionary);
   const setTapDictionary = useAppStore((s) => s.setTapDictionary);
   const setLastRead = useAppStore((s) => s.setLastRead);
+  const setAwradLastRead = useAppStore((s) => s.setAwradLastRead);
   const loaderRef = useRef<HTMLDivElement>(null);
   const resumedRef = useRef(false);
+  const visibleVerseKeyRef = useRef<string | null>(null);
+  const pendingScrollKeyRef = useRef<string | null>(null);
+  const isAwradRef = useRef(false);
+  const prevTranslationKeyRef = useRef('');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selected, setSelected] = useState<{ word: Word; verseKey: string } | null>(null);
+  const [visibleVerseKey, setVisibleVerseKey] = useState<string | null>(null);
   // Persisted state differs from the prerendered HTML — gate it until mounted
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const router = useRouter();
+
+  useEffect(() => {
+    setMounted(true);
+    const sp = new URLSearchParams(window.location.search);
+    isAwradRef.current = sp.get('awrad') === '1';
+  }, []);
 
   const { data: chapters } = useQuery({
     queryKey: ['chapters'],
@@ -64,6 +91,12 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
       enabled: mounted,
     });
 
+  const allVerses = data?.pages.flatMap((p) => p.verses) ?? [];
+  const totalVerses: number | undefined =
+    source === 'chapter'
+      ? chapter?.verses_count
+      : data?.pages[0]?.pagination?.total_records;
+
   // Auto-load next page when bottom sentinel enters viewport
   useEffect(() => {
     const el = loaderRef.current;
@@ -78,31 +111,95 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     return () => obs.disconnect();
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-  // Resume at #verse-N from the Continue Reading link, once content exists
+  // Resume at #verse-N from Continue Reading, fast-forwarding pages until
+  // the target element is in the DOM. Also restores position after a
+  // translation queryKey change flushes the cached data.
   useEffect(() => {
-    if (resumedRef.current || !data) return;
+    if (!data) return;
+
+    // Translation toggle: scroll back to where the reader was
+    if (pendingScrollKeyRef.current) {
+      const key = pendingScrollKeyRef.current;
+      const el = document.querySelector(`[data-verse-key="${key}"]`) as HTMLElement | null;
+      if (el) {
+        pendingScrollKeyRef.current = null;
+        el.scrollIntoView({ behavior: 'instant', block: 'start' });
+      }
+      return;
+    }
+
+    // Hash-based resume from the Continue Reading banner
+    if (resumedRef.current) return;
     const hash = window.location.hash;
     if (!hash.startsWith('#verse-')) return;
     const el = document.getElementById(hash.slice(1));
     if (el) {
       resumedRef.current = true;
       el.scrollIntoView({ behavior: 'instant', block: 'start' });
+    } else if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    } else if (!hasNextPage) {
+      resumedRef.current = true;
     }
-  }, [data]);
+  }, [data, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Capture the visible verse key just before a translation change invalidates
+  // the query cache so we can restore position once new data loads.
+  useEffect(() => {
+    const key = `${showTranslation}:${translationId}`;
+    if (prevTranslationKeyRef.current !== '' && prevTranslationKeyRef.current !== key) {
+      pendingScrollKeyRef.current = visibleVerseKeyRef.current;
+    }
+    prevTranslationKeyRef.current = key;
+  }, [showTranslation, translationId]);
+
+  // Tell PageScroll when we've reached the last page of this section
+  useEffect(() => {
+    if (!hasNextPage && allVerses.length > 0) {
+      window.__readerEndState = {
+        source,
+        id,
+        done: true,
+        maxId: MAX_IDS[source] ?? 114,
+      };
+    }
+    return () => {
+      delete window.__readerEndState;
+    };
+  }, [hasNextPage, allVerses.length, source, id]);
+
+  // Navigate to the next section when PageScroll dispatches mindful:advance
+  useEffect(() => {
+    const maxId = MAX_IDS[source] ?? 114;
+    const onAdvance = () => {
+      if (id >= maxId) return;
+      const next = source === 'chapter' ? `/surah/${id + 1}` : `/${source}/${id + 1}`;
+      router.push(next);
+    };
+    window.addEventListener('mindful:advance', onAdvance);
+    return () => window.removeEventListener('mindful:advance', onAdvance);
+  }, [source, id, router]);
 
   const handleVerseVisible = useCallback(
     (verse: Verse) => {
       const surahId = surahNumberOf(verse.verse_key);
       const surah = chapters?.find((c) => c.id === surahId);
       if (!surah) return;
-      setLastRead({
+      const payload = {
         surahId,
         surahName: surah.name_simple,
         verseKey: verse.verse_key,
         verseNumber: ayahNumberOf(verse.verse_key),
-      });
+      };
+      visibleVerseKeyRef.current = verse.verse_key;
+      setVisibleVerseKey(verse.verse_key);
+      if (isAwradRef.current) {
+        setAwradLastRead(payload);
+      } else {
+        setLastRead(payload);
+      }
     },
-    [chapters, setLastRead]
+    [chapters, setLastRead, setAwradLastRead]
   );
 
   const handleWordTap = useCallback(
@@ -124,8 +221,6 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
       : undefined;
   const grammar = morphEntry ? decodeMorph(morphEntry) : undefined;
 
-  const allVerses = data?.pages.flatMap((p) => p.verses) ?? [];
-
   // Consecutive same-surah runs; a chapter read is always a single group
   const groups: { surahId: number; verses: Verse[] }[] = [];
   for (const verse of allVerses) {
@@ -137,10 +232,25 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
 
   const mushafMode = mounted && !showTranslation;
 
+  // Progress display: percentage through section and estimated time remaining
+  let progressText: string | undefined;
+  if (totalVerses && visibleVerseKey) {
+    const currentNum =
+      source === 'chapter'
+        ? ayahNumberOf(visibleVerseKey)
+        : (allVerses.findIndex((v) => v.verse_key === visibleVerseKey) + 1) || 0;
+    if (currentNum > 0) {
+      const pct = Math.round((currentNum / totalVerses) * 100);
+      const remaining = Math.ceil((totalVerses - currentNum) / READING_RATE);
+      progressText = `${pct}% · ${remaining < 1 ? '< 1m' : `${remaining}m`}`;
+    }
+  }
+
   return (
     <div className="min-h-screen bg-paper">
       <TopBar
         title={title}
+        progress={progressText}
         right={
           mounted ? (
             <div className="flex gap-2">
@@ -383,7 +493,7 @@ function MushafVerse({
   const words = verse.words?.filter((w) => w.char_type_name === 'word');
 
   return (
-    <span ref={ref} id={`verse-${verse.verse_number}`}>
+    <span ref={ref} id={`verse-${verse.verse_number}`} data-verse-key={verse.verse_key}>
       {words?.length && onWordTap
         ? words.map((word, i) => (
             <Fragment key={word.id}>
@@ -444,5 +554,9 @@ function VisibleVerseCard({
     return () => obs.disconnect();
   }, [verse, onVisible]);
 
-  return <VerseCard ref={ref} verse={verse} arabicSize={arabicSize} onWordTap={onWordTap} />;
+  return (
+    <div ref={ref} data-verse-key={verse.verse_key}>
+      <VerseCard verse={verse} arabicSize={arabicSize} onWordTap={onWordTap} />
+    </div>
+  );
 }
