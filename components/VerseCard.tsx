@@ -33,7 +33,8 @@ export function VerseCard({ verse, arabicSize = 1, onWordTap, ref }: Props) {
               {i > 0 && ' '}
               <button
                 onClick={() => onWordTap(word, verse.verse_key)}
-                className="active:bg-ink active:text-paper"
+                onContextMenu={(e) => e.preventDefault()}
+                className="active:bg-ink active:text-paper select-none [user-select:none] [-webkit-user-select:none]"
               >
                 {word.text_uthmani}
               </button>

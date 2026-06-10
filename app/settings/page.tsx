@@ -36,7 +36,7 @@ export default function SettingsPage() {
   useEffect(() => setMounted(true), []);
 
   const rowClass =
-    'w-full flex items-center justify-between py-3 divider-dotted text-left active:bg-ink active:text-paper';
+    'w-full flex items-center justify-between py-3 divider-dotted text-left';
 
   return (
     <div className="min-h-screen bg-paper">

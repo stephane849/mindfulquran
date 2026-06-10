@@ -54,13 +54,26 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
   // Word-by-word glosses power the tap dictionary in both card and mushaf modes
   const withWords = mounted && tapDictionary;
 
+  const isHizb = source === 'hizb';
+
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
     useInfiniteQuery({
       queryKey: ['verses', source, id, effectiveTranslation, withWords],
       queryFn: ({ pageParam }) =>
         getVersesBy(source, id, pageParam, effectiveTranslation, withWords),
-      initialPageParam: 1,
-      getNextPageParam: (lastPage) => lastPage.pagination?.next_page ?? undefined,
+      // Hizb pageParam encodes quarter (1–4) and internal page as quarter*100+page.
+      initialPageParam: isHizb ? 101 : 1,
+      getNextPageParam: (lastPage, _all, lastPageParam) => {
+        if (isHizb) {
+          const quarter = Math.floor(lastPageParam / 100);
+          if (lastPage.pagination?.next_page != null) {
+            return quarter * 100 + lastPage.pagination.next_page;
+          }
+          if (quarter < 4) return (quarter + 1) * 100 + 1;
+          return undefined;
+        }
+        return lastPage.pagination?.next_page ?? undefined;
+      },
       enabled: mounted,
     });
 
@@ -217,7 +230,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
         <button
           onClick={() => setTapDictionary(!tapDictionary)}
           aria-pressed={tapDictionary}
-          className="w-full flex items-center justify-between py-3 mt-2 divider-dotted text-left active:bg-ink active:text-paper"
+          className="w-full flex items-center justify-between py-3 mt-2 divider-dotted text-left"
         >
           <span className="text-lg font-bold">Tap dictionary</span>
           <span
@@ -255,7 +268,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
           <li>
             <button
               onClick={() => setShowTranslation(false)}
-              className="w-full flex items-center justify-between py-3 divider-dotted text-left active:bg-ink active:text-paper"
+              className="w-full flex items-center justify-between py-3 divider-dotted text-left"
             >
               <span className="text-lg font-bold">Arabic only</span>
               {!showTranslation && <span className="text-xl font-bold">✓</span>}
@@ -265,7 +278,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
             <li key={t.id}>
               <button
                 onClick={() => setTranslationId(t.id)}
-                className="w-full flex items-center justify-between py-3 divider-dotted text-left active:bg-ink active:text-paper"
+                className="w-full flex items-center justify-between py-3 divider-dotted text-left"
               >
                 <span className="text-lg font-bold">{t.name}</span>
                 {showTranslation && translationId === t.id && (
@@ -337,7 +350,7 @@ function MushafGroup({
   const size = clampArabicSize(arabicSize);
   return (
     <p
-      className={`font-arabic ${ARABIC_TEXT_SIZES[size]} leading-loose px-4 py-5 text-right [text-align:justify]`}
+      className={`font-arabic ${ARABIC_TEXT_SIZES[size]} leading-[2.4] px-4 py-5 text-right`}
       dir="rtl"
       lang="ar"
     >
@@ -386,13 +399,12 @@ function MushafVerse({
     <span ref={ref} id={`verse-${verse.verse_number}`}>
       {words?.length && onWordTap
         ? words.map((word, i) => (
-            <span key={word.id}>
-              {i > 0 && ' '}
-              <LongPressWord
-                word={word}
-                onLookup={(w) => onWordTap(w, verse.verse_key)}
-              />
-            </span>
+            <LongPressWord
+              key={word.id}
+              word={word}
+              onLookup={(w) => onWordTap(w, verse.verse_key)}
+              addLeadingSpace={i > 0}
+            />
           ))
         : verse.text_uthmani}
       <span className={markerClass}> ﴿{toArabicDigits(ayahNumberOf(verse.verse_key))}﴾ </span>
@@ -405,13 +417,16 @@ function MushafVerse({
 function LongPressWord({
   word,
   onLookup,
+  addLeadingSpace,
 }: {
   word: Word;
   onLookup: (w: Word) => void;
+  addLeadingSpace?: boolean;
 }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const start = () => {
+  const start = (e: React.PointerEvent) => {
+    e.preventDefault();
     timer.current = setTimeout(() => onLookup(word), 400);
   };
   const cancel = () => {
@@ -419,16 +434,19 @@ function LongPressWord({
   };
 
   return (
-    <button
-      onPointerDown={start}
-      onPointerUp={cancel}
-      onPointerLeave={cancel}
-      onPointerCancel={cancel}
-      onContextMenu={(e) => e.preventDefault()}
-      className="active:bg-ink active:text-paper"
-    >
-      {word.text_uthmani}
-    </button>
+    <>
+      {addLeadingSpace && ' '}
+      <button
+        onPointerDown={start}
+        onPointerUp={cancel}
+        onPointerLeave={cancel}
+        onPointerCancel={cancel}
+        onContextMenu={(e) => e.preventDefault()}
+        className="inline select-none [user-select:none] [-webkit-user-select:none]"
+      >
+        {word.text_uthmani}
+      </button>
+    </>
   );
 }
 

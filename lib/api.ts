@@ -25,23 +25,35 @@ const SOURCE_PATH: Record<ReaderSource, string> = {
   hizb: 'by_hizb',
 };
 
+// For hizb source the pageParam encodes quarter + internal page as quarter*100+page.
+// (The qurancdn API by_hizb endpoint uses quarter-hizb IDs 1–240; a true hizb n maps
+// to quarter-hizbs (4n−3) through (4n).)
 export async function getVersesBy(
   source: ReaderSource,
   id: number,
-  page: number,
+  pageParam: number,
   translationId: number | null,
   withWords = false
 ): Promise<VersesResponse> {
   const params: Record<string, string> = {
     fields: 'text_uthmani',
     per_page: '50',
-    page: String(page),
   };
   if (translationId !== null) params.translations = String(translationId);
   if (withWords) {
     params.words = 'true';
     params.word_fields = 'text_uthmani';
   }
+
+  if (source === 'hizb') {
+    const quarter = Math.floor(pageParam / 100);   // 1–4
+    const page    = pageParam % 100;               // 1–n
+    const quarterHizbId = (id - 1) * 4 + quarter; // maps hizb 1–60 → quarters 1–240
+    params.page = String(page);
+    return get<VersesResponse>(`/verses/by_hizb/${quarterHizbId}`, params);
+  }
+
+  params.page = String(pageParam);
   return get<VersesResponse>(`/verses/${SOURCE_PATH[source]}/${id}`, params);
 }
 
