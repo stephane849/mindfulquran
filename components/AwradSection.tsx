@@ -37,14 +37,15 @@ export function AwradSection({ chapters }: { chapters: Chapter[] | undefined }) 
             </button>
             {isOpen && (
               <ol className="border-t border-ink/30">
-                {group.ids.map((surahId) => {
+                {group.ids.map((surahId, liIdx) => {
                   const c = chapters.find((ch) => ch.id === surahId);
                   if (!c) return null;
+                  const notLast = liIdx < group.ids.length - 1;
                   return (
-                    <li key={surahId}>
+                    <li key={surahId} className={notLast ? 'divider-dotted' : ''}>
                       <Link
                         href={`/surah/${surahId}?awrad=1`}
-                        className="flex items-center gap-3 px-4 py-3 divider-dotted active:bg-ink active:text-paper"
+                        className="flex items-center gap-3 px-4 py-3 active:bg-ink active:text-paper"
                       >
                         <span className="w-8 shrink-0 text-base font-bold tabular-nums">
                           {surahId}
