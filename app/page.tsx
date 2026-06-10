@@ -31,7 +31,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-paper">
       <header className="px-4 pt-5 pb-4 border-b-[3px] border-ink flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Mindful Quran</h1>
+          <h1 className="text-2xl font-bold">MindfulQuran</h1>
           <p className="text-lg font-arabic" dir="rtl" lang="ar">
             القرآن الكريم
           </p>

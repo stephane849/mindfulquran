@@ -2,7 +2,7 @@ import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.mindfulquran.app',
-  appName: 'Mindful Quran',
+  appName: 'MindfulQuran',
   webDir: 'out',
   server: {
     androidScheme: 'https',

@@ -22,7 +22,7 @@ const scheherazade = Scheherazade_New({
 });
 
 export const metadata: Metadata = {
-  title: 'Mindful Quran',
+  title: 'MindfulQuran',
   description: 'Read the Quran with mindful, distraction-free design.',
 };
 
