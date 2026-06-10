@@ -344,6 +344,24 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
         </button>
 
         <p className="text-[15px] font-bold uppercase tracking-widest mt-4 mb-2">
+          Recitation speed
+        </p>
+        <div className="flex gap-2">
+          {([60, 90, 120] as const).map((wpm) => (
+            <button
+              key={wpm}
+              onClick={() => setRecitationSpeed(wpm)}
+              className={`flex-1 h-12 border-2 border-ink rounded-lg text-base font-bold ${
+                recitationSpeed === wpm ? 'bg-ink text-paper' : ''
+              }`}
+            >
+              {wpm}
+            </button>
+          ))}
+        </div>
+        <p className="text-[13px] mt-1 mb-1">words per minute</p>
+
+        <p className="text-[15px] font-bold uppercase tracking-widest mt-5 mb-2">
           Arabic text size
         </p>
         <div className="flex gap-2">
@@ -361,24 +379,6 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
             </button>
           ))}
         </div>
-
-        <p className="text-[15px] font-bold uppercase tracking-widest mt-5 mb-2">
-          Recitation speed
-        </p>
-        <div className="flex gap-2">
-          {([60, 90, 120] as const).map((wpm) => (
-            <button
-              key={wpm}
-              onClick={() => setRecitationSpeed(wpm)}
-              className={`flex-1 h-12 border-2 border-ink rounded-lg text-base font-bold ${
-                recitationSpeed === wpm ? 'bg-ink text-paper' : ''
-              }`}
-            >
-              {wpm}
-            </button>
-          ))}
-        </div>
-        <p className="text-[13px] mt-1 mb-1">words per minute</p>
 
         <p className="text-[15px] font-bold uppercase tracking-widest mt-5 mb-2">
           Translation
