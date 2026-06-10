@@ -11,7 +11,7 @@ const AWRAD_GROUPS = [
   },
   { label: 'After Fajr', ids: [36] },
   { label: 'After ʿAsr', ids: [56] },
-  { label: 'Before Sleep', ids: [67] },
+  { label: 'After ʿIshāʾ', ids: [67] },
 ];
 
 export function AwradSection({ chapters }: { chapters: Chapter[] | undefined }) {
