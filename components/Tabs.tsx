@@ -22,7 +22,7 @@ export function Tabs<T extends string>({
             onClick={() => onChange(tab.value)}
             className={`flex-1 h-12 text-lg relative ${
               selected ? 'font-bold' : ''
-            } active:bg-ink active:text-paper`}
+            }`}
           >
             {tab.label}
             {selected && <span className="absolute bottom-0 inset-x-3 h-1 bg-ink" />}

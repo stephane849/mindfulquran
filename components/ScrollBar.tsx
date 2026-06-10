@@ -100,10 +100,12 @@ export function ScrollBar() {
   }, [update]);
 
   const page = (dir: 'up' | 'down') => {
-    const el = document.querySelector('span[data-verse-key]') as HTMLElement | null;
+    const p = document.querySelector('p.font-arabic') as HTMLElement | null;
     let step = Math.round(window.innerHeight * 0.85);
-    if (el) {
-      const lh = parseFloat(getComputedStyle(el).lineHeight);
+    if (p) {
+      const cs = getComputedStyle(p);
+      let lh = parseFloat(cs.lineHeight);
+      if (lh > 0 && lh <= 4) lh = lh * parseFloat(cs.fontSize); // unitless → px
       if (lh > 4) step = Math.max(lh, window.innerHeight - lh);
     }
     window.scrollBy({ top: dir === 'down' ? step : -step, behavior: 'instant' });

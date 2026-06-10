@@ -55,6 +55,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
   const pendingScrollKeyRef = useRef<string | null>(null);
   const isAwradRef = useRef(false);
   const prevTranslationKeyRef = useRef('');
+  const sheetHistoryRef = useRef(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selected, setSelected] = useState<{ word: Word; verseKey: string } | null>(null);
   const [visibleVerseKey, setVisibleVerseKey] = useState<string | null>(null);
@@ -66,6 +67,13 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     setMounted(true);
     const sp = new URLSearchParams(window.location.search);
     isAwradRef.current = sp.get('awrad') === '1';
+    // Cold-start: Capacitor may restore last URL with no prior history entry.
+    // Inject a home entry so hardware back navigates home instead of minimizing.
+    if (window.history.length <= 1) {
+      const cur = window.location.href;
+      window.history.replaceState(null, '', '/');
+      window.history.pushState(null, '', cur);
+    }
   }, []);
 
   const { data: chapters } = useQuery({
@@ -157,22 +165,22 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     prevTranslationKeyRef.current = key;
   }, [showTranslation, translationId]);
 
-  // Tell PageScroll when we've reached the last page of this section
+  // Keep __readerEndState current so PageScroll can dispatch advance/retreat.
+  // Set immediately (source/id available for retreat even before all pages load);
+  // done=true gates auto-advance.
   useEffect(() => {
-    if (!hasNextPage && allVerses.length > 0) {
-      window.__readerEndState = {
-        source,
-        id,
-        done: true,
-        maxId: MAX_IDS[source] ?? 114,
-      };
-    }
+    window.__readerEndState = {
+      source,
+      id,
+      done: !hasNextPage && allVerses.length > 0,
+      maxId: MAX_IDS[source] ?? 114,
+    };
     return () => {
       delete window.__readerEndState;
     };
   }, [hasNextPage, allVerses.length, source, id]);
 
-  // Navigate to the next section when PageScroll dispatches mindful:advance
+  // Navigate forward/backward when PageScroll dispatches advance/retreat
   useEffect(() => {
     const maxId = MAX_IDS[source] ?? 114;
     const onAdvance = () => {
@@ -180,9 +188,56 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
       const next = source === 'chapter' ? `/surah/${id + 1}` : `/${source}/${id + 1}`;
       router.push(next);
     };
+    const onRetreat = () => {
+      if (isAwradRef.current || id <= 1) return;
+      const prev = source === 'chapter' ? `/surah/${id - 1}` : `/${source}/${id - 1}`;
+      router.push(prev);
+    };
     window.addEventListener('mindful:advance', onAdvance);
-    return () => window.removeEventListener('mindful:advance', onAdvance);
+    window.addEventListener('mindful:retreat', onRetreat);
+    return () => {
+      window.removeEventListener('mindful:advance', onAdvance);
+      window.removeEventListener('mindful:retreat', onRetreat);
+    };
   }, [source, id, router]);
+
+  // Push a history entry when a sheet opens so hardware back closes it.
+  useEffect(() => {
+    if ((settingsOpen || selected !== null) && !sheetHistoryRef.current) {
+      window.history.pushState({ mindful: 'sheet' }, '');
+      sheetHistoryRef.current = true;
+    }
+  }, [settingsOpen, selected]);
+
+  // Hardware back (popstate) closes any open sheet.
+  useEffect(() => {
+    const onPop = () => {
+      if (sheetHistoryRef.current) {
+        sheetHistoryRef.current = false;
+        setSettingsOpen(false);
+        setSelected(null);
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  // Close helpers: sync history back when closed programmatically.
+  const closeSettings = () => {
+    setSettingsOpen(false);
+    if (sheetHistoryRef.current) {
+      sheetHistoryRef.current = false;
+      window.history.back();
+    }
+  };
+
+  const closeSelected = () => {
+    setSelected(null);
+    if (sheetHistoryRef.current) {
+      sheetHistoryRef.current = false;
+      window.history.back();
+    }
+  };
 
   const handleVerseVisible = useCallback(
     (verse: Verse) => {
@@ -333,7 +388,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
       </div>
 
       {/* Quick reading settings */}
-      <BottomSheet open={settingsOpen} onClose={() => setSettingsOpen(false)}>
+      <BottomSheet open={settingsOpen} onClose={closeSettings}>
         <button
           onClick={() => setTapDictionary(!tapDictionary)}
           aria-pressed={tapDictionary}
@@ -416,7 +471,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
       </BottomSheet>
 
       {/* Word dictionary */}
-      <BottomSheet open={selected !== null} onClose={() => setSelected(null)}>
+      <BottomSheet open={selected !== null} onClose={closeSelected}>
         {selected && (
           <div className="text-center py-4">
             <p className="font-arabic text-5xl leading-loose" dir="rtl" lang="ar">

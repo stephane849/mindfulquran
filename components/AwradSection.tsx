@@ -26,7 +26,7 @@ export function AwradSection({ chapters }: { chapters: Chapter[] | undefined }) 
         return (
           <div key={gi} className="divider-dotted">
             <button
-              className="w-full flex items-center justify-between px-4 py-3 text-left active:bg-ink active:text-paper"
+              className="w-full flex items-center justify-between px-4 py-3 text-left"
               onClick={() => setExpandedIndex(isOpen ? null : gi)}
               aria-expanded={isOpen}
             >
@@ -45,7 +45,7 @@ export function AwradSection({ chapters }: { chapters: Chapter[] | undefined }) 
                     <li key={surahId} className={notLast ? 'divider-dotted' : ''}>
                       <Link
                         href={`/surah/${surahId}?awrad=1`}
-                        className="flex items-center gap-3 px-4 py-3 active:bg-ink active:text-paper"
+                        className="flex items-center gap-3 px-4 py-3"
                       >
                         <span className="w-8 shrink-0 text-base font-bold tabular-nums">
                           {surahId}

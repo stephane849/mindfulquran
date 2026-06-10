@@ -5,7 +5,7 @@ export function SurahListItem({ chapter }: { chapter: Chapter }) {
   return (
     <Link
       href={`/surah/${chapter.id}`}
-      className="flex items-center gap-3 px-4 py-3 divider-dotted active:bg-ink active:text-paper"
+      className="flex items-center gap-3 px-4 py-3 divider-dotted"
     >
       <span className="w-9 shrink-0 text-lg font-bold tabular-nums">{chapter.id}</span>
       <div className="flex-1 min-w-0">

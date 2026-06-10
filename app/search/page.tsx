@@ -50,7 +50,7 @@ export default function SearchPage() {
         />
         <button
           type="submit"
-          className="h-12 px-4 text-base font-bold border-2 border-ink rounded-lg active:bg-ink active:text-paper"
+          className="h-12 px-4 text-base font-bold border-2 border-ink rounded-lg"
         >
           Go
         </button>
@@ -82,7 +82,7 @@ export default function SearchPage() {
             <li key={`${result.verse_key}-${result.verse_id}`}>
               <Link
                 href={`/surah/${surah}#verse-${ayah}`}
-                className="block px-4 py-4 divider-dotted active:bg-ink active:text-paper"
+                className="block px-4 py-4 divider-dotted"
               >
                 <p className="text-[15px] font-bold">{result.verse_key}</p>
                 <p
@@ -108,7 +108,7 @@ export default function SearchPage() {
           <button
             onClick={() => fetchNextPage()}
             disabled={isFetchingNextPage}
-            className="text-base font-bold border-2 border-ink rounded-lg px-5 py-2 active:bg-ink active:text-paper"
+            className="text-base font-bold border-2 border-ink rounded-lg px-5 py-2"
           >
             {isFetchingNextPage ? 'Loading…' : 'More results'}
           </button>

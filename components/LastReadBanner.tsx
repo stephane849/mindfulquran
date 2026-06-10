@@ -41,7 +41,7 @@ export function LastReadBanner() {
   return (
     <Link
       href={readLink(read)}
-      className="block mx-4 my-3 p-4 border-2 border-ink rounded-lg active:bg-ink active:text-paper"
+      className="block mx-4 my-3 p-4 border-2 border-ink rounded-lg"
     >
       <span className="text-[15px] font-bold uppercase tracking-widest">
         {readLabel(read)}
