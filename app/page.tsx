@@ -29,7 +29,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-paper">
-      <header className="pl-4 pr-10 pt-5 pb-4 border-b-[3px] border-ink flex items-center justify-between">
+      <header className="pl-4 pr-4 pt-5 pb-4 border-b-[3px] border-ink flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold leading-tight">MindfulQuran</h1>
           <p className="text-base font-arabic" dir="rtl" lang="ar">

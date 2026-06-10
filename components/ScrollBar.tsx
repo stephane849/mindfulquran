@@ -9,28 +9,22 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 const LONG_PRESS_MS = 500;
 const MIN_THUMB = 16;
 
-function Chevron({ dir, dotted }: { dir: 'up' | 'down'; dotted: boolean }) {
+function Chevron({ dir }: { dir: 'up' | 'down' }) {
   const d = dir === 'up' ? 'M3 13 L10 4 L17 13' : 'M3 5 L10 14 L17 5';
   return (
     <svg width="20" height="18" viewBox="0 0 20 18" aria-hidden>
-      {dotted ? (
-        <path d={d} fill="none" stroke="#000" strokeWidth="2" strokeDasharray="1.5 3" />
-      ) : (
-        <path d={`${d} Z`} fill="#000" />
-      )}
+      <path d={`${d} Z`} fill="#000" />
     </svg>
   );
 }
 
 function RailButton({
   dir,
-  dotted,
   onTap,
   onLongPress,
   label,
 }: {
   dir: 'up' | 'down';
-  dotted: boolean;
   onTap: () => void;
   onLongPress: () => void;
   label: string;
@@ -63,7 +57,7 @@ function RailButton({
       onPointerLeave={cancel}
       onContextMenu={(e) => e.preventDefault()}
     >
-      <Chevron dir={dir} dotted={dotted} />
+      <Chevron dir={dir} />
     </button>
   );
 }
@@ -73,8 +67,6 @@ export function ScrollBar() {
   const [state, setState] = useState<{
     thumbTop: number;
     thumbHeight: number;
-    atStart: boolean;
-    atEnd: boolean;
   } | null>(null);
 
   const update = useCallback(() => {
@@ -91,8 +83,6 @@ export function ScrollBar() {
     setState({
       thumbTop: progress * (trackH - thumbHeight),
       thumbHeight,
-      atStart: window.scrollY <= 1,
-      atEnd: window.scrollY >= maxScroll - 1,
     });
   }, []);
 
@@ -129,7 +119,6 @@ export function ScrollBar() {
     >
       <RailButton
         dir="up"
-        dotted={state.atStart}
         onTap={() => page('up')}
         onLongPress={() => jump('up')}
         label="Scroll up (hold to jump to top)"
@@ -145,7 +134,6 @@ export function ScrollBar() {
       </div>
       <RailButton
         dir="down"
-        dotted={state.atEnd}
         onTap={() => page('down')}
         onLongPress={() => jump('down')}
         label="Scroll down (hold to jump to end)"
