@@ -54,26 +54,13 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
   // Word-by-word glosses power the tap dictionary in both card and mushaf modes
   const withWords = mounted && tapDictionary;
 
-  const isHizb = source === 'hizb';
-
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
     useInfiniteQuery({
       queryKey: ['verses', source, id, effectiveTranslation, withWords],
       queryFn: ({ pageParam }) =>
-        getVersesBy(source, id, pageParam, effectiveTranslation, withWords),
-      // Hizb pageParam encodes quarter (1–4) and internal page as quarter*100+page.
-      initialPageParam: isHizb ? 101 : 1,
-      getNextPageParam: (lastPage, _all, lastPageParam) => {
-        if (isHizb) {
-          const quarter = Math.floor(lastPageParam / 100);
-          if (lastPage.pagination?.next_page != null) {
-            return quarter * 100 + lastPage.pagination.next_page;
-          }
-          if (quarter < 4) return (quarter + 1) * 100 + 1;
-          return undefined;
-        }
-        return lastPage.pagination?.next_page ?? undefined;
-      },
+        getVersesBy(source, id, pageParam as number, effectiveTranslation, withWords),
+      initialPageParam: 1,
+      getNextPageParam: (lastPage) => lastPage.pagination?.next_page ?? undefined,
       enabled: mounted,
     });
 

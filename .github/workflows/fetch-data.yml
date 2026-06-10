@@ -1,0 +1,33 @@
+name: Fetch Offline Data
+
+# Run manually when offline data needs to be refreshed.
+# Commits the generated public/quran/ files back to the branch.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/modest-archimedes-w6t940
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Fetch Quran data from API
+        run: python3 scripts/fetch-offline-data.py
+
+      - name: Commit bundled data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/quran/
+          git diff --cached --quiet && echo "Nothing to commit." && exit 0
+          git commit -m "Bundle offline Quran data (114 surahs, 4 translations, word glosses)"
+          git push origin claude/modest-archimedes-w6t940
