@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { ENGLISH_TRANSLATIONS, DEFAULT_TRANSLATION_ID } from './api';
 import type { LastRead } from './types';
 
-export type BrowseMode = 'surah' | 'juz' | 'hizb';
+export type BrowseMode = 'surah' | 'juz' | 'hizb' | 'awrad';
 /** Index into ARABIC_SIZES: 0 small … 3 extra large */
 export type ArabicSize = 0 | 1 | 2 | 3;
 
@@ -19,6 +19,8 @@ interface AppStore {
   arabicSize: ArabicSize;
   /** Tappable words with glosses; off skips the heavier word-by-word fetch */
   tapDictionary: boolean;
+  /** Arabic recitation speed in words per minute (60–120) */
+  recitationSpeed: number;
   setLastRead: (data: LastRead) => void;
   setAwradLastRead: (data: LastRead) => void;
   setTranslationId: (id: number) => void;
@@ -26,6 +28,7 @@ interface AppStore {
   setBrowseMode: (mode: BrowseMode) => void;
   setArabicSize: (size: ArabicSize) => void;
   setTapDictionary: (on: boolean) => void;
+  setRecitationSpeed: (wpm: number) => void;
 }
 
 const isValidTranslation = (id: unknown): id is number =>
@@ -41,6 +44,7 @@ export const useAppStore = create<AppStore>()(
       browseMode: 'surah',
       arabicSize: 1,
       tapDictionary: true,
+      recitationSpeed: 90,
       setLastRead: (lastRead) => set({ lastRead }),
       setAwradLastRead: (awradLastRead) => set({ awradLastRead }),
       setTranslationId: (translationId) =>
@@ -49,11 +53,12 @@ export const useAppStore = create<AppStore>()(
       setBrowseMode: (browseMode) => set({ browseMode }),
       setArabicSize: (arabicSize) => set({ arabicSize }),
       setTapDictionary: (tapDictionary) => set({ tapDictionary }),
+      setRecitationSpeed: (recitationSpeed) => set({ recitationSpeed }),
     }),
     {
       name: 'mindful-quran',
       storage: createJSONStorage(() => localStorage),
-      version: 4,
+      version: 5,
       migrate: (state, version) => {
         const s = state as Record<string, unknown>;
         if (version < 2) {
@@ -69,6 +74,9 @@ export const useAppStore = create<AppStore>()(
         }
         if (version < 4) {
           s.awradLastRead = null;
+        }
+        if (version < 5) {
+          s.recitationSpeed = 90;
         }
         return s as unknown as AppStore;
       },

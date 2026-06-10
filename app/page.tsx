@@ -14,6 +14,7 @@ const BROWSE_TABS: { value: BrowseMode; label: string }[] = [
   { value: 'surah', label: 'Surah' },
   { value: 'juz', label: 'Juz' },
   { value: 'hizb', label: 'Hizb' },
+  { value: 'awrad', label: 'Awrad' },
 ];
 
 export default function HomePage() {
@@ -94,7 +95,7 @@ export default function HomePage() {
 
           {browseMode === 'juz' && <DivisionList kind="juz" count={30} />}
           {browseMode === 'hizb' && <DivisionList kind="hizb" count={60} />}
-          <AwradSection chapters={chapters} />
+          {browseMode === 'awrad' && <AwradSection chapters={chapters} />}
         </>
       )}
     </div>

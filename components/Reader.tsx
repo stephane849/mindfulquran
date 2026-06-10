@@ -32,7 +32,7 @@ declare global {
 }
 
 const MAX_IDS: Record<string, number> = { chapter: 114, juz: 30, hizb: 60 };
-const READING_RATE = 20; // verses per minute
+const WORDS_PER_VERSE = 12; // Quran average: ~77 k words / 6 236 verses
 
 export function Reader({ source, id }: { source: ReaderSource; id: number }) {
   const translationId = useAppStore((s) => s.translationId);
@@ -45,6 +45,8 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
   const setTapDictionary = useAppStore((s) => s.setTapDictionary);
   const setLastRead = useAppStore((s) => s.setLastRead);
   const setAwradLastRead = useAppStore((s) => s.setAwradLastRead);
+  const recitationSpeed = useAppStore((s) => s.recitationSpeed);
+  const setRecitationSpeed = useAppStore((s) => s.setRecitationSpeed);
   const loaderRef = useRef<HTMLDivElement>(null);
   const resumedRef = useRef(false);
   const visibleVerseKeyRef = useRef<string | null>(null);
@@ -232,16 +234,18 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
 
   const mushafMode = mounted && !showTranslation;
 
-  // Progress display: percentage through section and estimated time remaining
+  // Progress only in mushaf mode; uses recitation WPM × avg words/verse
   let progressText: string | undefined;
-  if (totalVerses && visibleVerseKey) {
+  if (mushafMode && totalVerses && visibleVerseKey) {
     const currentNum =
       source === 'chapter'
         ? ayahNumberOf(visibleVerseKey)
         : (allVerses.findIndex((v) => v.verse_key === visibleVerseKey) + 1) || 0;
     if (currentNum > 0) {
       const pct = Math.round((currentNum / totalVerses) * 100);
-      const remaining = Math.ceil((totalVerses - currentNum) / READING_RATE);
+      const remaining = Math.ceil(
+        ((totalVerses - currentNum) * WORDS_PER_VERSE) / recitationSpeed
+      );
       progressText = `${pct}% · ${remaining < 1 ? '< 1m' : `${remaining}m`}`;
     }
   }
@@ -357,6 +361,24 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
             </button>
           ))}
         </div>
+
+        <p className="text-[15px] font-bold uppercase tracking-widest mt-5 mb-2">
+          Recitation speed
+        </p>
+        <div className="flex gap-2">
+          {([60, 90, 120] as const).map((wpm) => (
+            <button
+              key={wpm}
+              onClick={() => setRecitationSpeed(wpm)}
+              className={`flex-1 h-12 border-2 border-ink rounded-lg text-base font-bold ${
+                recitationSpeed === wpm ? 'bg-ink text-paper' : ''
+              }`}
+            >
+              {wpm}
+            </button>
+          ))}
+        </div>
+        <p className="text-[13px] mt-1 mb-1">words per minute</p>
 
         <p className="text-[15px] font-bold uppercase tracking-widest mt-5 mb-2">
           Translation

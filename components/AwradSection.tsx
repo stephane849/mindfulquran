@@ -20,8 +20,7 @@ export function AwradSection({ chapters }: { chapters: Chapter[] | undefined }) 
   if (!chapters) return null;
 
   return (
-    <section className="border-t-[3px] border-ink mt-4">
-      <h2 className="px-4 pt-4 pb-2 text-[15px] font-bold uppercase tracking-widest">Awrad</h2>
+    <div>
       {AWRAD_GROUPS.map((group, gi) => {
         const isOpen = expandedIndex === gi;
         return (
@@ -66,6 +65,6 @@ export function AwradSection({ chapters }: { chapters: Chapter[] | undefined }) 
           </div>
         );
       })}
-    </section>
+    </div>
   );
 }
