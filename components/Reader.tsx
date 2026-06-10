@@ -143,6 +143,17 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     // Hash-based resume from the Continue Reading banner
     if (resumedRef.current) return;
     const hash = window.location.hash;
+    // #end: arrived by paging backward — load every page, then start at
+    // the bottom so volume-up flows continuously through sections.
+    if (hash === '#end') {
+      if (hasNextPage) {
+        if (!isFetchingNextPage) fetchNextPage();
+      } else {
+        resumedRef.current = true;
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' });
+      }
+      return;
+    }
     if (!hash.startsWith('#verse-')) return;
     const el = document.getElementById(hash.slice(1));
     if (el) {
@@ -190,7 +201,9 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     };
     const onRetreat = () => {
       if (isAwradRef.current || id <= 1) return;
-      const prev = source === 'chapter' ? `/surah/${id - 1}` : `/${source}/${id - 1}`;
+      // #end lands at the bottom of the previous section so paging up
+      // continues the flow seamlessly instead of restarting at its top.
+      const prev = source === 'chapter' ? `/surah/${id - 1}#end` : `/${source}/${id - 1}#end`;
       router.push(prev);
     };
     window.addEventListener('mindful:advance', onAdvance);
