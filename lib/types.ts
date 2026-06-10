@@ -81,4 +81,7 @@ export interface LastRead {
   surahName: string;
   verseKey: string;
   verseNumber: number;
+  /** Set for juz/hizb reads so the banner links back to the right division */
+  source?: 'chapter' | 'juz' | 'hizb';
+  sourceId?: number;
 }

@@ -11,6 +11,12 @@ interface AppStore {
   lastRead: LastRead | null;
   /** Separate tracking for Awrad reads — never overwrites main lastRead */
   awradLastRead: LastRead | null;
+  /** Juz reads — separate slot so surah lookups don't overwrite juz progress */
+  juzLastRead: LastRead | null;
+  /** Hizb reads — separate slot so surah lookups don't overwrite hizb progress */
+  hizbLastRead: LastRead | null;
+  /** Explicit pin for khitma tracking — survives all other navigation */
+  pinnedRead: LastRead | null;
   /** Which translation to use when translation display is on */
   translationId: number;
   /** Toggled by the EN button in the reader and "Arabic only" in settings */
@@ -23,6 +29,10 @@ interface AppStore {
   recitationSpeed: number;
   setLastRead: (data: LastRead) => void;
   setAwradLastRead: (data: LastRead) => void;
+  setJuzLastRead: (data: LastRead) => void;
+  setHizbLastRead: (data: LastRead) => void;
+  setPinnedRead: (data: LastRead) => void;
+  clearPinnedRead: () => void;
   setTranslationId: (id: number) => void;
   setShowTranslation: (show: boolean) => void;
   setBrowseMode: (mode: BrowseMode) => void;
@@ -39,6 +49,9 @@ export const useAppStore = create<AppStore>()(
     (set) => ({
       lastRead: null,
       awradLastRead: null,
+      juzLastRead: null,
+      hizbLastRead: null,
+      pinnedRead: null,
       translationId: DEFAULT_TRANSLATION_ID,
       showTranslation: true,
       browseMode: 'surah',
@@ -47,6 +60,10 @@ export const useAppStore = create<AppStore>()(
       recitationSpeed: 90,
       setLastRead: (lastRead) => set({ lastRead }),
       setAwradLastRead: (awradLastRead) => set({ awradLastRead }),
+      setJuzLastRead: (juzLastRead) => set({ juzLastRead }),
+      setHizbLastRead: (hizbLastRead) => set({ hizbLastRead }),
+      setPinnedRead: (pinnedRead) => set({ pinnedRead }),
+      clearPinnedRead: () => set({ pinnedRead: null }),
       setTranslationId: (translationId) =>
         set({ translationId, showTranslation: true }),
       setShowTranslation: (showTranslation) => set({ showTranslation }),
@@ -58,7 +75,7 @@ export const useAppStore = create<AppStore>()(
     {
       name: 'mindful-quran',
       storage: createJSONStorage(() => localStorage),
-      version: 5,
+      version: 6,
       migrate: (state, version) => {
         const s = state as Record<string, unknown>;
         if (version < 2) {
@@ -77,6 +94,11 @@ export const useAppStore = create<AppStore>()(
         }
         if (version < 5) {
           s.recitationSpeed = 90;
+        }
+        if (version < 6) {
+          s.juzLastRead = null;
+          s.hizbLastRead = null;
+          s.pinnedRead = null;
         }
         return s as unknown as AppStore;
       },
