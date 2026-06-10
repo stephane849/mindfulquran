@@ -35,12 +35,7 @@ export default function HomePage() {
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/icon-192.png" alt="" width={40} height={40} className="rounded-lg border-2 border-ink shrink-0" />
-          <div>
-            <h1 className="text-xl font-bold leading-tight">MindfulQuran</h1>
-            <p className="text-base font-arabic" dir="rtl" lang="ar">
-              القرآن الكريم
-            </p>
-          </div>
+          <h1 className="text-xl font-bold mt-2">MindfulQuran</h1>
         </div>
         <div className="flex gap-2 shrink-0">
           <Link
