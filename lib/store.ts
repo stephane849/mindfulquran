@@ -9,30 +9,19 @@ export type ArabicSize = 0 | 1 | 2 | 3;
 
 interface AppStore {
   lastRead: LastRead | null;
-  /** Separate tracking for Awrad reads — never overwrites main lastRead */
   awradLastRead: LastRead | null;
-  /** Juz reads — separate slot so surah lookups don't overwrite juz progress */
   juzLastRead: LastRead | null;
-  /** Hizb reads — separate slot so surah lookups don't overwrite hizb progress */
   hizbLastRead: LastRead | null;
-  /** Explicit pin for khitma tracking — survives all other navigation */
-  pinnedRead: LastRead | null;
-  /** Which translation to use when translation display is on */
   translationId: number;
-  /** Toggled by the EN button in the reader and "Arabic only" in settings */
   showTranslation: boolean;
   browseMode: BrowseMode;
   arabicSize: ArabicSize;
-  /** Tappable words with glosses; off skips the heavier word-by-word fetch */
   tapDictionary: boolean;
-  /** Arabic recitation speed in words per minute (60–120) */
   recitationSpeed: number;
   setLastRead: (data: LastRead) => void;
   setAwradLastRead: (data: LastRead) => void;
   setJuzLastRead: (data: LastRead) => void;
   setHizbLastRead: (data: LastRead) => void;
-  setPinnedRead: (data: LastRead) => void;
-  clearPinnedRead: () => void;
   setTranslationId: (id: number) => void;
   setShowTranslation: (show: boolean) => void;
   setBrowseMode: (mode: BrowseMode) => void;
@@ -51,7 +40,6 @@ export const useAppStore = create<AppStore>()(
       awradLastRead: null,
       juzLastRead: null,
       hizbLastRead: null,
-      pinnedRead: null,
       translationId: DEFAULT_TRANSLATION_ID,
       showTranslation: true,
       browseMode: 'surah',
@@ -62,8 +50,6 @@ export const useAppStore = create<AppStore>()(
       setAwradLastRead: (awradLastRead) => set({ awradLastRead }),
       setJuzLastRead: (juzLastRead) => set({ juzLastRead }),
       setHizbLastRead: (hizbLastRead) => set({ hizbLastRead }),
-      setPinnedRead: (pinnedRead) => set({ pinnedRead }),
-      clearPinnedRead: () => set({ pinnedRead: null }),
       setTranslationId: (translationId) =>
         set({ translationId, showTranslation: true }),
       setShowTranslation: (showTranslation) => set({ showTranslation }),
@@ -75,7 +61,7 @@ export const useAppStore = create<AppStore>()(
     {
       name: 'mindful-quran',
       storage: createJSONStorage(() => localStorage),
-      version: 6,
+      version: 7,
       migrate: (state, version) => {
         const s = state as Record<string, unknown>;
         if (version < 2) {
@@ -89,17 +75,13 @@ export const useAppStore = create<AppStore>()(
         if (version < 3 && s.translationId === 20) {
           s.translationId = DEFAULT_TRANSLATION_ID;
         }
-        if (version < 4) {
-          s.awradLastRead = null;
-        }
-        if (version < 5) {
-          s.recitationSpeed = 90;
-        }
+        if (version < 4) s.awradLastRead = null;
+        if (version < 5) s.recitationSpeed = 90;
         if (version < 6) {
           s.juzLastRead = null;
           s.hizbLastRead = null;
-          s.pinnedRead = null;
         }
+        if (version < 7) delete s.pinnedRead;
         return s as unknown as AppStore;
       },
     }

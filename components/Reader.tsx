@@ -47,9 +47,6 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
   const setAwradLastRead = useAppStore((s) => s.setAwradLastRead);
   const setJuzLastRead = useAppStore((s) => s.setJuzLastRead);
   const setHizbLastRead = useAppStore((s) => s.setHizbLastRead);
-  const pinnedRead = useAppStore((s) => s.pinnedRead);
-  const setPinnedRead = useAppStore((s) => s.setPinnedRead);
-  const clearPinnedRead = useAppStore((s) => s.clearPinnedRead);
   const recitationSpeed = useAppStore((s) => s.recitationSpeed);
   const setRecitationSpeed = useAppStore((s) => s.setRecitationSpeed);
   const loaderRef = useRef<HTMLDivElement>(null);
@@ -218,23 +215,6 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     []
   );
 
-  const handlePin = useCallback(() => {
-    if (pinnedRead) { clearPinnedRead(); return; }
-    const key = visibleVerseKeyRef.current;
-    if (!key) return;
-    const surahId = surahNumberOf(key);
-    const surah = chapters?.find((c) => c.id === surahId);
-    if (!surah) return;
-    setPinnedRead({
-      surahId,
-      surahName: surah.name_simple,
-      verseKey: key,
-      verseNumber: ayahNumberOf(key),
-      source,
-      sourceId: id,
-    });
-  }, [pinnedRead, clearPinnedRead, setPinnedRead, chapters, source, id]);
-
   // Grammar data for the selected word's surah (bundled, cached forever)
   const selectedSurah = selected ? surahNumberOf(selected.verseKey) : null;
   const { data: morphology } = useQuery({
@@ -284,17 +264,6 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
         right={
           mounted ? (
             <div className="flex gap-2">
-              <button
-                onClick={handlePin}
-                aria-label={pinnedRead ? 'Clear pin' : 'Pin position'}
-                className={`border-2 border-ink rounded-lg px-2 py-1 ${pinnedRead ? 'bg-ink text-paper' : ''}`}
-              >
-                <svg width="13" height="16" viewBox="0 0 13 16" fill="currentColor" aria-hidden>
-                  {pinnedRead
-                    ? <path d="M1 0h11v15l-5.5-3.5L1 15V0z"/>
-                    : <path fillRule="evenodd" d="M1 0h11v15l-5.5-3.5L1 15V0zm2 2v10.07l3.5-2.23 3.5 2.23V2H3z"/>}
-                </svg>
-              </button>
               <button
                 onClick={() => setSettingsOpen(true)}
                 aria-label="Reading settings"
