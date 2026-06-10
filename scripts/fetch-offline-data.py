@@ -13,7 +13,7 @@ import json
 import time
 import sys
 from pathlib import Path
-from urllib.request import urlopen
+from urllib.request import urlopen, Request
 from urllib.parse import urlencode
 from urllib.error import URLError
 
@@ -21,6 +21,14 @@ BASE = 'https://api.qurancdn.com/api/v4'
 OUT  = Path('public/quran')
 TRANSLATION_IDS = [85, 20, 22, 203]   # Abdel Haleem, Saheeh Int, Yusuf Ali, al-Hilali
 DELAY = 0.3   # seconds between requests (be polite to the API)
+
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Referer': 'https://quran.com/',
+    'Origin': 'https://quran.com',
+}
 
 
 # ─── HTTP helper ─────────────────────────────────────────────────────────────
@@ -31,7 +39,8 @@ def get(path, **params):
         url += '?' + urlencode({k: v for k, v in params.items() if v is not None})
     for attempt in range(4):
         try:
-            with urlopen(url, timeout=30) as r:
+            req = Request(url, headers=HEADERS)
+            with urlopen(req, timeout=30) as r:
                 return json.loads(r.read().decode())
         except Exception as exc:
             if attempt == 3:
