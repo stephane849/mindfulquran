@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { pageDelta } from '@/lib/paging';
 
 declare global {
   interface Window {
@@ -14,25 +15,12 @@ declare global {
   }
 }
 
-// One-line overlap step: the last visible line becomes the first on the next
-// page. Android WebView returns lineHeight as a unitless string ("2.4"), so
-// multiply by fontSize to convert to pixels when needed.
-function getStep(): number {
-  const p = document.querySelector('p.font-arabic') as HTMLElement | null;
-  if (p) {
-    const cs = getComputedStyle(p);
-    let lh = parseFloat(cs.lineHeight);
-    if (lh > 0 && lh <= 4) lh = lh * parseFloat(cs.fontSize); // unitless → px
-    if (lh > 4) return Math.max(lh, window.innerHeight - lh);
-  }
-  return Math.round(window.innerHeight * 0.85);
-}
-
-// Pages the viewport with one-line overlap (mushaf mode) or 85% (card mode).
-// When already at the bottom, fires mindful:advance to move to the next
-// section; when already at the top, fires mindful:retreat for the previous
-// section. The native Android shell calls window.__volumePage on volume key
-// presses; PageUp/PageDown work in a browser for testing.
+// Pages the viewport with exact one-line overlap in mushaf mode (see
+// lib/paging.ts) or 85% of the reading area in card mode. When already at
+// the bottom, fires mindful:advance to move to the next section; when
+// already at the top, fires mindful:retreat for the previous section. The
+// native Android shell calls window.__volumePage on volume key presses;
+// PageUp/PageDown work in a browser for testing.
 export function PageScroll() {
   useEffect(() => {
     const page = (dir: 'up' | 'down') => {
@@ -50,8 +38,7 @@ export function PageScroll() {
           return;
         }
       }
-      const step = getStep();
-      window.scrollBy({ top: dir === 'down' ? step : -step, behavior: 'instant' });
+      window.scrollBy({ top: pageDelta(dir), behavior: 'instant' });
     };
 
     window.__volumePage = page;

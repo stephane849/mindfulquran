@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { pageDelta } from '@/lib/paging';
 
 // MMD scroll rail (per mudita/MMD LazyMMD): chevron buttons at both ends —
 // tap scrolls one step, long-press jumps to that end, icon turns dotted when
@@ -100,15 +101,7 @@ export function ScrollBar() {
   }, [update]);
 
   const page = (dir: 'up' | 'down') => {
-    const p = document.querySelector('p.font-arabic') as HTMLElement | null;
-    let step = Math.round(window.innerHeight * 0.85);
-    if (p) {
-      const cs = getComputedStyle(p);
-      let lh = parseFloat(cs.lineHeight);
-      if (lh > 0 && lh <= 4) lh = lh * parseFloat(cs.fontSize); // unitless → px
-      if (lh > 4) step = Math.max(lh, window.innerHeight - lh);
-    }
-    window.scrollBy({ top: dir === 'down' ? step : -step, behavior: 'instant' });
+    window.scrollBy({ top: pageDelta(dir), behavior: 'instant' });
   };
   const jump = (dir: 'up' | 'down') => {
     window.scrollTo({

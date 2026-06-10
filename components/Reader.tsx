@@ -530,6 +530,7 @@ function MushafGroup({
   const size = clampArabicSize(arabicSize);
   return (
     <p
+      data-mushaf
       className={`font-arabic ${ARABIC_TEXT_SIZES[size]} leading-[2.4] px-4 py-5 text-right`}
       dir="rtl"
       lang="ar"
