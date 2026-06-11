@@ -87,3 +87,11 @@ export interface LastRead {
   source?: 'chapter' | 'juz' | 'hizb';
   sourceId?: number;
 }
+
+/** Build-time payload baked into reader pages by lib/prerender.ts */
+export interface Prerendered {
+  /** Arabic-only verses: id, verse_number, verse_key, text_uthmani */
+  verses: Verse[];
+  /** Chapters appearing in the section — for the header and dividers */
+  chapters: Chapter[];
+}

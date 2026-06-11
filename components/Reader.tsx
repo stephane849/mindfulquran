@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useRef, useState, useCallback } from 'react';
+import { Fragment, useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { getChapters, getVersesBy, ENGLISH_TRANSLATIONS, type ReaderSource } from '@/lib/api';
@@ -19,7 +19,7 @@ import {
   ARABIC_MARKER_SIZES,
 } from '@/lib/arabic';
 import { getPageHeight } from '@/lib/paging';
-import type { Chapter, Verse, Word } from '@/lib/types';
+import type { Chapter, Verse, Word, Prerendered } from '@/lib/types';
 
 declare global {
   interface Window {
@@ -29,13 +29,21 @@ declare global {
       done: boolean;
       maxId: number;
     };
+    __volumePage?: (dir: 'up' | 'down') => void;
   }
 }
 
 const MAX_IDS: Record<string, number> = { chapter: 114, juz: 30, hizb: 60 };
-const WORDS_PER_VERSE = 12; // Quran average: ~77 k words / 6 236 verses
 
-export function Reader({ source, id }: { source: ReaderSource; id: number }) {
+export function Reader({
+  source,
+  id,
+  prerendered,
+}: {
+  source: ReaderSource;
+  id: number;
+  prerendered?: Prerendered;
+}) {
   const translationId = useAppStore((s) => s.translationId);
   const showTranslation = useAppStore((s) => s.showTranslation);
   const setShowTranslation = useAppStore((s) => s.setShowTranslation);
@@ -60,6 +68,8 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selected, setSelected] = useState<{ word: Word; verseKey: string } | null>(null);
   const [visibleVerseKey, setVisibleVerseKey] = useState<string | null>(null);
+  const [resumeKey, setResumeKey] = useState<string | null>(null);
+  const [pageInfo, setPageInfo] = useState<{ cur: number; total: number } | null>(null);
   // Persisted state differs from the prerendered HTML — gate it until mounted
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
@@ -82,7 +92,9 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     queryFn: getChapters,
   });
 
-  const chapter = source === 'chapter' ? chapters?.find((c) => c.id === id) : undefined;
+  // Use prerendered chapters for first paint; switch to query data once loaded
+  const effectiveChapters = chapters ?? prerendered?.chapters;
+  const chapter = source === 'chapter' ? effectiveChapters?.find((c) => c.id === id) : undefined;
   const title =
     source === 'chapter'
       ? chapter?.name_simple ?? `Surah ${id}`
@@ -91,7 +103,6 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
       : `Hizb ${id}`;
 
   const effectiveTranslation = mounted && showTranslation ? translationId : null;
-  // Word-by-word glosses power the tap dictionary in both card and mushaf modes
   const withWords = mounted && tapDictionary;
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
@@ -105,10 +116,24 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     });
 
   const allVerses = data?.pages.flatMap((p) => p.verses) ?? [];
-  const totalVerses: number | undefined =
-    source === 'chapter'
-      ? chapter?.verses_count
-      : data?.pages[0]?.pagination?.total_records;
+  // Show prerendered Arabic text on first paint; switch to query data once
+  // mounted and loaded so translations and word-dictionary data are included.
+  const displayVerses =
+    !mounted || allVerses.length === 0 ? (prerendered?.verses ?? []) : allVerses;
+
+  // Cumulative Arabic word counts for accurate reading-time estimates.
+  // The 12-words/verse approximation was wildly off (e.g. Al-Baqarah averages
+  // ~28 words/verse). We count actual words from text_uthmani instead.
+  const wordMap = useMemo(() => {
+    const verses = allVerses.length > 0 ? allVerses : (prerendered?.verses ?? []);
+    const map = new Map<string, number>();
+    let total = 0;
+    for (const v of verses) {
+      total += v.text_uthmani.trim().split(/\s+/).filter(Boolean).length;
+      map.set(v.verse_key, total);
+    }
+    return { map, total };
+  }, [data, prerendered]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-load next page when bottom sentinel enters viewport
   useEffect(() => {
@@ -124,20 +149,20 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     return () => obs.disconnect();
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-  // Snap to the page that contains this verse so that:
-  // (a) the verse is at or very near the top of the visible area, and
-  // (b) the resume position is on the same line-height grid as the volume
-  //     buttons — no unexpected jumps on the first press after resuming.
-  // rAF defers until after Next.js/browser scroll management has settled.
-  const scrollToVerse = (el: HTMLElement) => {
+  // Snap to the page grid so the target verse lands at the top of a full page.
+  // verseKey, when provided, triggers a brief highlight on the resumed verse.
+  const scrollToVerse = (el: HTMLElement, verseKey?: string) => {
     requestAnimationFrame(() => {
       const nav = document.querySelector('nav.sticky') as HTMLElement | null;
       const navH = nav ? nav.getBoundingClientRect().bottom : 64;
-      // el position in document coords (scrollY is 0 on a fresh section load)
       const verseDocTop = el.getBoundingClientRect().top + window.scrollY - navH;
       const pH = getPageHeight();
       const pageStart = Math.max(0, Math.floor(verseDocTop / pH)) * pH;
       window.scrollTo({ top: pageStart, behavior: 'instant' });
+      if (verseKey) {
+        setResumeKey(verseKey);
+        setTimeout(() => setResumeKey(null), 2000);
+      }
     });
   };
 
@@ -160,8 +185,6 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     if (resumedRef.current) return;
     const hash = window.location.hash;
 
-    // #end: arrived by paging backward — scroll to the bottom so
-    // volume-up continues the flow seamlessly.
     if (hash === '#end') {
       if (hasNextPage) {
         if (!isFetchingNextPage) fetchNextPage();
@@ -172,21 +195,18 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
       return;
     }
 
-    // #vk-2:150 — verse_key hash from LastReadBanner (collision-free).
-    // Decode in case the WebView percent-encoded the colon (%3A).
     if (hash.startsWith('#vk-')) {
       const verseKey = decodeURIComponent(hash.slice(4));
       const el = document.querySelector(`[data-verse-key="${verseKey}"]`) as HTMLElement | null;
       if (el) {
         resumedRef.current = true;
-        scrollToVerse(el);
+        scrollToVerse(el, verseKey);
       } else if (!hasNextPage) {
-        resumedRef.current = true; // verse not found; section fully loaded
+        resumedRef.current = true;
       }
       return;
     }
 
-    // Legacy #verse-N format (bookmarks saved before the vk- switch)
     if (!hash.startsWith('#verse-')) return;
     const el = document.getElementById(hash.slice(1)) as HTMLElement | null;
     if (el) {
@@ -199,8 +219,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     }
   }, [data, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // Capture the visible verse key just before a translation change invalidates
-  // the query cache so we can restore position once new data loads.
+  // Capture visible verse before a translation change invalidates the query cache
   useEffect(() => {
     const key = `${showTranslation}:${translationId}`;
     if (prevTranslationKeyRef.current !== '' && prevTranslationKeyRef.current !== key) {
@@ -209,9 +228,6 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     prevTranslationKeyRef.current = key;
   }, [showTranslation, translationId]);
 
-  // Keep __readerEndState current so PageScroll can dispatch advance/retreat.
-  // Set immediately (source/id available for retreat even before all pages load);
-  // done=true gates auto-advance.
   useEffect(() => {
     window.__readerEndState = {
       source,
@@ -224,7 +240,6 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     };
   }, [hasNextPage, allVerses.length, source, id]);
 
-  // Navigate forward/backward when PageScroll dispatches advance/retreat
   useEffect(() => {
     const maxId = MAX_IDS[source] ?? 114;
     const onAdvance = () => {
@@ -234,8 +249,6 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     };
     const onRetreat = () => {
       if (isAwradRef.current || id <= 1) return;
-      // #end lands at the bottom of the previous section so paging up
-      // continues the flow seamlessly instead of restarting at its top.
       const prev = source === 'chapter' ? `/surah/${id - 1}#end` : `/${source}/${id - 1}#end`;
       router.push(prev);
     };
@@ -247,7 +260,6 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     };
   }, [source, id, router]);
 
-  // Push a history entry when a sheet opens so hardware back closes it.
   useEffect(() => {
     if ((settingsOpen || selected !== null) && !sheetHistoryRef.current) {
       window.history.pushState({ mindful: 'sheet' }, '');
@@ -255,7 +267,6 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     }
   }, [settingsOpen, selected]);
 
-  // Hardware back (popstate) closes any open sheet.
   useEffect(() => {
     const onPop = () => {
       if (sheetHistoryRef.current) {
@@ -268,7 +279,37 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  // Close helpers: sync history back when closed programmatically.
+  // Page x/y indicator — updated on every scroll event
+  useEffect(() => {
+    const update = () => {
+      const pH = getPageHeight();
+      if (pH <= 0) return;
+      const totalH = document.documentElement.scrollHeight;
+      const cur = Math.floor((window.scrollY + 2) / pH) + 1;
+      const total = Math.max(cur, Math.ceil(totalH / pH));
+      setPageInfo({ cur, total });
+    };
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, []);
+
+  // Tap zones: left-half tap → page up, right-half tap → page down.
+  // Skipped when the tap lands on a button/link/input/nav or a sheet is open.
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (settingsOpen || selected !== null) return;
+      if ((e.target as Element).closest('button, a, input, nav, select')) return;
+      window.__volumePage?.(e.clientX < window.innerWidth / 2 ? 'up' : 'down');
+    };
+    document.addEventListener('click', onClick);
+    return () => document.removeEventListener('click', onClick);
+  }, [settingsOpen, selected]);
+
   const closeSettings = () => {
     setSettingsOpen(false);
     if (sheetHistoryRef.current) {
@@ -288,7 +329,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
   const handleVerseVisible = useCallback(
     (verse: Verse) => {
       const surahId = surahNumberOf(verse.verse_key);
-      const surah = chapters?.find((c) => c.id === surahId);
+      const surah = effectiveChapters?.find((c) => c.id === surahId);
       if (!surah) return;
       const payload = {
         surahId,
@@ -308,7 +349,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
         setLastRead(payload);
       }
     },
-    [chapters, source, id, setLastRead, setAwradLastRead, setJuzLastRead, setHizbLastRead]
+    [effectiveChapters, source, id, setLastRead, setAwradLastRead, setJuzLastRead, setHizbLastRead]
   );
 
   const handleWordTap = useCallback(
@@ -316,7 +357,6 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     []
   );
 
-  // Grammar data for the selected word's surah (bundled, cached forever)
   const selectedSurah = selected ? surahNumberOf(selected.verseKey) : null;
   const { data: morphology } = useQuery({
     queryKey: ['morphology', selectedSurah],
@@ -330,31 +370,26 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
       : undefined;
   const grammar = morphEntry ? decodeMorph(morphEntry) : undefined;
 
-  // Consecutive same-surah runs; a chapter read is always a single group
   const groups: { surahId: number; verses: Verse[] }[] = [];
-  for (const verse of allVerses) {
+  for (const verse of displayVerses) {
     const surahId = surahNumberOf(verse.verse_key);
     const last = groups[groups.length - 1];
     if (last && last.surahId === surahId) last.verses.push(verse);
     else groups.push({ surahId, verses: [verse] });
   }
 
-  const mushafMode = mounted && !showTranslation;
+  // Before mount, always render mushaf so the server-rendered HTML matches the
+  // first client render exactly (avoids hydration mismatch when showTranslation
+  // is persisted as true in localStorage).
+  const mushafMode = !mounted ? true : !showTranslation;
 
-  // Progress only in mushaf mode; uses recitation WPM × avg words/verse
+  // Progress: page x/y + time remaining using real Arabic word counts
   let progressText: string | undefined;
-  if (mushafMode && totalVerses && visibleVerseKey) {
-    const currentNum =
-      source === 'chapter'
-        ? ayahNumberOf(visibleVerseKey)
-        : (allVerses.findIndex((v) => v.verse_key === visibleVerseKey) + 1) || 0;
-    if (currentNum > 0) {
-      const pct = Math.round((currentNum / totalVerses) * 100);
-      const remaining = Math.ceil(
-        ((totalVerses - currentNum) * WORDS_PER_VERSE) / recitationSpeed
-      );
-      progressText = `${pct}% · ${remaining < 1 ? '< 1m' : `${remaining}m`}`;
-    }
+  if (mounted && pageInfo) {
+    const wordsRead = wordMap.map.get(visibleVerseKey ?? '') ?? 0;
+    const remaining = Math.ceil((wordMap.total - wordsRead) / recitationSpeed);
+    const timeStr = remaining < 1 ? '< 1m' : `${remaining}m`;
+    progressText = `${pageInfo.cur}/${pageInfo.total} · ${timeStr}`;
   }
 
   return (
@@ -388,7 +423,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
 
       {chapter && <SurahHeader chapter={chapter} />}
 
-      {(isLoading || !mounted) && (
+      {(isLoading || !mounted) && displayVerses.length === 0 && (
         <p className="px-4 py-8 text-center text-base">Loading verses…</p>
       )}
 
@@ -402,7 +437,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
       {groups.map((group) => (
         <Fragment key={`${group.surahId}-${group.verses[0].id}`}>
           {source !== 'chapter' && (
-            <SurahDivider chapter={chapters?.find((c) => c.id === group.surahId)} />
+            <SurahDivider chapter={effectiveChapters?.find((c) => c.id === group.surahId)} />
           )}
           {mushafMode ? (
             <MushafGroup
@@ -410,6 +445,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
               arabicSize={arabicSize}
               onVisible={handleVerseVisible}
               onWordTap={tapDictionary ? handleWordTap : undefined}
+              resumeKey={resumeKey}
             />
           ) : (
             group.verses.map((verse) => (
@@ -419,6 +455,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
                 onVisible={handleVerseVisible}
                 arabicSize={arabicSize}
                 onWordTap={handleWordTap}
+                resumeKey={resumeKey}
               />
             ))
           )}
@@ -426,11 +463,13 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
       ))}
 
       <div ref={loaderRef} className="py-5 text-center text-[15px]">
-        {isFetchingNextPage
-          ? 'Loading more…'
-          : !hasNextPage && allVerses.length > 0
-          ? `· End of ${source === 'chapter' ? 'surah' : source} ·`
-          : null}
+        {mounted && (
+          isFetchingNextPage
+            ? 'Loading more…'
+            : !hasNextPage && allVerses.length > 0
+            ? `· End of ${source === 'chapter' ? 'surah' : source} ·`
+            : null
+        )}
       </div>
 
       {/* Quick reading settings */}
@@ -567,11 +606,13 @@ function MushafGroup({
   arabicSize,
   onVisible,
   onWordTap,
+  resumeKey,
 }: {
   verses: Verse[];
   arabicSize: number;
   onVisible: (v: Verse) => void;
   onWordTap?: (w: Word, verseKey: string) => void;
+  resumeKey: string | null;
 }) {
   const size = clampArabicSize(arabicSize);
   return (
@@ -588,6 +629,7 @@ function MushafGroup({
           markerClass={ARABIC_MARKER_SIZES[size]}
           onVisible={onVisible}
           onWordTap={onWordTap}
+          highlighted={resumeKey === verse.verse_key}
         />
       ))}
     </p>
@@ -599,11 +641,13 @@ function MushafVerse({
   markerClass,
   onVisible,
   onWordTap,
+  highlighted,
 }: {
   verse: Verse;
   markerClass: string;
   onVisible: (v: Verse) => void;
   onWordTap?: (w: Word, verseKey: string) => void;
+  highlighted: boolean;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
 
@@ -623,7 +667,12 @@ function MushafVerse({
   const words = verse.words?.filter((w) => w.char_type_name === 'word');
 
   return (
-    <span ref={ref} id={`verse-${verse.verse_number}`} data-verse-key={verse.verse_key}>
+    <span
+      ref={ref}
+      id={`verse-${verse.verse_number}`}
+      data-verse-key={verse.verse_key}
+      className={highlighted ? 'outline outline-[3px] outline-ink outline-offset-2' : undefined}
+    >
       {words?.length && onWordTap
         ? words.map((word, i) => (
             <Fragment key={word.id}>
@@ -663,11 +712,13 @@ function VisibleVerseCard({
   onVisible,
   arabicSize,
   onWordTap,
+  resumeKey,
 }: {
   verse: Verse;
   onVisible: (v: Verse) => void;
   arabicSize: number;
   onWordTap: (w: Word, verseKey: string) => void;
+  resumeKey: string | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -685,7 +736,11 @@ function VisibleVerseCard({
   }, [verse, onVisible]);
 
   return (
-    <div ref={ref} data-verse-key={verse.verse_key}>
+    <div
+      ref={ref}
+      data-verse-key={verse.verse_key}
+      className={resumeKey === verse.verse_key ? 'outline outline-[3px] outline-ink outline-offset-[-2px]' : undefined}
+    >
       <VerseCard verse={verse} arabicSize={arabicSize} onWordTap={onWordTap} />
     </div>
   );
