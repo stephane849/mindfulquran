@@ -46,8 +46,8 @@ jobs:
             echo "name=Mindful Quran $GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=v1.0.0-alpha.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
-            echo "name=Mindful Quran v1.0.0-alpha.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+            echo "tag=v1.2.1-alpha.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+            echo "name=Mindful Quran v1.2.1-alpha.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -62,6 +62,15 @@ jobs:
 
       - name: Install custom MainActivity (volume-button paging)
         run: cp native/MainActivity.java android/app/src/main/java/com/mindfulquran/app/MainActivity.java
+
+      # Capacitor's template hardcodes versionName "1.0" / versionCode 1;
+      # stamp the release tag so Android settings shows the real version
+      - name: Stamp Android version
+        run: |
+          VER="${{ steps.meta.outputs.tag }}"
+          sed -i "s/versionName \"1.0\"/versionName \"${VER#v}\"/" android/app/build.gradle
+          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          grep -E "versionName|versionCode" android/app/build.gradle
 
       - name: Generate launcher icons from assets/
         run: npx @capacitor/assets generate --android
@@ -96,17 +105,27 @@ jobs:
             **Install:** download the `.apk` below and sideload it.
 
             ### Features
-            - Browse by Surah, Juz, or Hizb; full-text search
+            - Fully offline — Quran text, four translations, word
+              glosses, grammar, and search are all bundled in the APK
+            - Browse by Surah, Juz, Hizb, or Awrad; each resumes
+              independently at your last ayah
             - Arabic (Scheherazade New) with English translation —
               M.A.S. Abdel Haleem default; Saheeh International,
               Yusuf Ali, Al-Hilali & Khan available
-            - Continuous mushaf mode when translation is off
+            - Continuous mushaf mode when translation is off, with
+              progress (% read · minutes left at your recitation speed)
+            - Search in English or Arabic — bare Arabic letters match
+              by root (e.g. علم finds every verse from that root)
             - Tap dictionary: per-word gloss, transliteration, and full
               grammar (root, part of speech, parse) from the Quranic
-              Arabic Corpus — offline; long-press in mushaf mode
-            - Continue Reading resumes at your last ayah
-            - Volume buttons page up/down; MMD scroll rail with
-              tap/hold chevrons; adjustable Arabic text size
+              Arabic Corpus
+            - True page turns: volume buttons or screen taps flip whole
+              pages on a line grid — no half-cut lines; sections flow
+              into each other at their boundaries
+            - Hardware back navigates within the app; MMD scroll rail
+              with tap/hold chevrons; adjustable Arabic text size
+            - Instant open: every surah, juz, and hizb page is
+              prerendered at build time
             - Pure black-on-white, zero animations — E Ink safe
 
             Quran text and translations from Quran.com. Grammar data from
