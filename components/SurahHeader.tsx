@@ -4,7 +4,7 @@ const BISMILLAH = 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَ
 
 export function SurahHeader({ chapter }: { chapter: Chapter }) {
   return (
-    <div className="px-4 pt-5 pb-4 border-b-[3px] border-ink text-center">
+    <div data-tap-ignore className="px-4 pt-5 pb-4 border-b-[3px] border-ink text-center">
       <p className="font-arabic text-4xl mb-1" dir="rtl" lang="ar">
         {chapter.name_arabic}
       </p>

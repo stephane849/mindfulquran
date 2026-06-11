@@ -18,4 +18,17 @@ public class MainActivity extends BridgeActivity {
     }
     return super.onKeyDown(keyCode, event);
   }
+
+  // Hardware back navigates within the app — closing an open sheet or
+  // returning to the previous screen — and only minimizes at the root.
+  // pushState entries (Next.js routes, sheet history) count toward
+  // canGoBack, so goBack() fires popstate and the web app handles it.
+  @Override
+  public void onBackPressed() {
+    if (getBridge().getWebView().canGoBack()) {
+      getBridge().getWebView().goBack();
+    } else {
+      super.onBackPressed();
+    }
+  }
 }

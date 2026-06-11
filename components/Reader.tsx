@@ -69,7 +69,6 @@ export function Reader({
   const [selected, setSelected] = useState<{ word: Word; verseKey: string } | null>(null);
   const [visibleVerseKey, setVisibleVerseKey] = useState<string | null>(null);
   const [resumeKey, setResumeKey] = useState<string | null>(null);
-  const [pageInfo, setPageInfo] = useState<{ cur: number; total: number } | null>(null);
   // Persisted state differs from the prerendered HTML — gate it until mounted
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
@@ -279,31 +278,12 @@ export function Reader({
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  // Page x/y indicator — updated on every scroll event
-  useEffect(() => {
-    const update = () => {
-      const pH = getPageHeight();
-      if (pH <= 0) return;
-      const totalH = document.documentElement.scrollHeight;
-      const cur = Math.floor((window.scrollY + 2) / pH) + 1;
-      const total = Math.max(cur, Math.ceil(totalH / pH));
-      setPageInfo({ cur, total });
-    };
-    update();
-    window.addEventListener('scroll', update, { passive: true });
-    window.addEventListener('resize', update);
-    return () => {
-      window.removeEventListener('scroll', update);
-      window.removeEventListener('resize', update);
-    };
-  }, []);
-
   // Tap zones: left-half tap → page up, right-half tap → page down.
   // Skipped when the tap lands on a button/link/input/nav or a sheet is open.
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       if (settingsOpen || selected !== null) return;
-      if ((e.target as Element).closest('button, a, input, nav, select')) return;
+      if ((e.target as Element).closest('button, a, input, nav, select, [data-tap-ignore]')) return;
       window.__volumePage?.(e.clientX < window.innerWidth / 2 ? 'up' : 'down');
     };
     document.addEventListener('click', onClick);
@@ -383,13 +363,14 @@ export function Reader({
   // is persisted as true in localStorage).
   const mushafMode = !mounted ? true : !showTranslation;
 
-  // Progress: page x/y + time remaining using real Arabic word counts
+  // Progress: percentage + time remaining, both from real Arabic word counts
   let progressText: string | undefined;
-  if (mounted && pageInfo) {
+  if (mounted && wordMap.total > 0) {
     const wordsRead = wordMap.map.get(visibleVerseKey ?? '') ?? 0;
+    const pct = Math.round((wordsRead / wordMap.total) * 100);
     const remaining = Math.ceil((wordMap.total - wordsRead) / recitationSpeed);
     const timeStr = remaining < 1 ? '< 1m' : `${remaining}m`;
-    progressText = `${pageInfo.cur}/${pageInfo.total} · ${timeStr}`;
+    progressText = `${pct}% · ${timeStr}`;
   }
 
   return (

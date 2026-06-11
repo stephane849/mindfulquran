@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { TopBar } from '@/components/TopBar';
 import { searchQuran } from '@/lib/api';
-import { surahNumberOf, ayahNumberOf } from '@/lib/arabic';
+import { surahNumberOf } from '@/lib/arabic';
 
 const stripTags = (html: string) => html.replace(/<[^>]+>/g, '');
 
@@ -83,12 +83,11 @@ export default function SearchPage() {
       <ol>
         {results.map((result) => {
           const surah = surahNumberOf(result.verse_key);
-          const ayah = ayahNumberOf(result.verse_key);
           const translation = result.translations?.[0];
           return (
             <li key={`${result.verse_key}-${result.verse_id}`}>
               <Link
-                href={`/surah/${surah}#verse-${ayah}`}
+                href={`/surah/${surah}#vk-${result.verse_key}`}
                 className="block px-4 py-4 divider-dotted"
               >
                 <p className="text-[15px] font-bold">{result.verse_key}</p>
