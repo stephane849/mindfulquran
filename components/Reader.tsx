@@ -18,6 +18,7 @@ import {
   ARABIC_TEXT_SIZES,
   ARABIC_MARKER_SIZES,
 } from '@/lib/arabic';
+import { getPageHeight } from '@/lib/paging';
 import type { Chapter, Verse, Word } from '@/lib/types';
 
 declare global {
@@ -123,13 +124,21 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     return () => obs.disconnect();
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-  // Scroll a verse element into view with its top flush below the sticky
-  // TopBar rather than hidden behind it.
+  // Snap to the page that contains this verse so that:
+  // (a) the verse is at or very near the top of the visible area, and
+  // (b) the resume position is on the same line-height grid as the volume
+  //     buttons — no unexpected jumps on the first press after resuming.
+  // rAF defers until after Next.js/browser scroll management has settled.
   const scrollToVerse = (el: HTMLElement) => {
-    el.scrollIntoView({ behavior: 'instant', block: 'start' });
-    const nav = document.querySelector('nav.sticky') as HTMLElement | null;
-    const navH = nav ? nav.getBoundingClientRect().bottom : 64;
-    window.scrollBy({ top: -navH, behavior: 'instant' });
+    requestAnimationFrame(() => {
+      const nav = document.querySelector('nav.sticky') as HTMLElement | null;
+      const navH = nav ? nav.getBoundingClientRect().bottom : 64;
+      // el position in document coords (scrollY is 0 on a fresh section load)
+      const verseDocTop = el.getBoundingClientRect().top + window.scrollY - navH;
+      const pH = getPageHeight();
+      const pageStart = Math.max(0, Math.floor(verseDocTop / pH)) * pH;
+      window.scrollTo({ top: pageStart, behavior: 'instant' });
+    });
   };
 
   // Resume at saved position or #end. Also restores position after a
@@ -163,9 +172,10 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
       return;
     }
 
-    // #vk-2:150 — verse_key hash from LastReadBanner (collision-free)
+    // #vk-2:150 — verse_key hash from LastReadBanner (collision-free).
+    // Decode in case the WebView percent-encoded the colon (%3A).
     if (hash.startsWith('#vk-')) {
-      const verseKey = hash.slice(4);
+      const verseKey = decodeURIComponent(hash.slice(4));
       const el = document.querySelector(`[data-verse-key="${verseKey}"]`) as HTMLElement | null;
       if (el) {
         resumedRef.current = true;

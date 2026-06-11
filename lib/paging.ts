@@ -24,7 +24,8 @@ function mushafLineHeight(): number {
 
 // Largest whole-line-count height that fits the reading area.
 // Falls back to 85% of reading area in card/fallback mode.
-function computePageHeight(): number {
+// Exported so Reader can snap the resume position to the same grid.
+export function getPageHeight(): number {
   const navH = navBottom();
   const availH = window.innerHeight - navH;
   const lh = mushafLineHeight();
@@ -39,7 +40,7 @@ function computePageHeight(): number {
 // pageHeight — pressing volume always snaps back to the grid even if the
 // reader was nudged slightly by a touch drag.
 export function pageDelta(dir: 'up' | 'down'): number {
-  const pH = computePageHeight();
+  const pH = getPageHeight();
   const currentIdx = Math.round(window.scrollY / pH);
   const targetIdx = dir === 'down' ? currentIdx + 1 : Math.max(0, currentIdx - 1);
   return targetIdx * pH - window.scrollY;
