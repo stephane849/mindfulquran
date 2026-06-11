@@ -39,9 +39,20 @@ export function getPageHeight(): number {
 // Uses absolute page indices so every page starts at an exact multiple of
 // pageHeight — pressing volume always snaps back to the grid even if the
 // reader was nudged slightly by a touch drag.
+//
+// Browsers round scroll positions to whole pixels while pageHeight is
+// usually fractional (line-height 2.4 × font-size), so after a flip
+// scrollY can land ~1px shy of the exact multiple. Tolerate that gap when
+// deciding the current page, otherwise the next press would move by under
+// a pixel and the reader appears stuck.
+const SNAP_EPS = 2;
+
 export function pageDelta(dir: 'up' | 'down'): number {
   const pH = getPageHeight();
-  const currentIdx = Math.floor(window.scrollY / pH);
-  const targetIdx = dir === 'down' ? currentIdx + 1 : Math.max(0, currentIdx - 1);
-  return targetIdx * pH - window.scrollY;
+  const y = window.scrollY;
+  const targetIdx =
+    dir === 'down'
+      ? Math.floor((y + SNAP_EPS) / pH) + 1
+      : Math.max(0, Math.ceil((y - SNAP_EPS) / pH) - 1);
+  return targetIdx * pH - y;
 }
