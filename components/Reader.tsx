@@ -68,7 +68,6 @@ export function Reader({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selected, setSelected] = useState<{ word: Word; verseKey: string } | null>(null);
   const [visibleVerseKey, setVisibleVerseKey] = useState<string | null>(null);
-  const [resumeKey, setResumeKey] = useState<string | null>(null);
   // Persisted state differs from the prerendered HTML — gate it until mounted
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
@@ -148,9 +147,7 @@ export function Reader({
     return () => obs.disconnect();
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-  // Snap to the page grid so the target verse lands at the top of a full page.
-  // verseKey, when provided, triggers a brief highlight on the resumed verse.
-  const scrollToVerse = (el: HTMLElement, verseKey?: string) => {
+  const scrollToVerse = (el: HTMLElement) => {
     requestAnimationFrame(() => {
       const nav = document.querySelector('nav.sticky') as HTMLElement | null;
       const navH = nav ? nav.getBoundingClientRect().bottom : 64;
@@ -158,10 +155,6 @@ export function Reader({
       const pH = getPageHeight();
       const pageStart = Math.max(0, Math.floor(verseDocTop / pH)) * pH;
       window.scrollTo({ top: pageStart, behavior: 'instant' });
-      if (verseKey) {
-        setResumeKey(verseKey);
-        setTimeout(() => setResumeKey(null), 2000);
-      }
     });
   };
 
@@ -199,7 +192,7 @@ export function Reader({
       const el = document.querySelector(`[data-verse-key="${verseKey}"]`) as HTMLElement | null;
       if (el) {
         resumedRef.current = true;
-        scrollToVerse(el, verseKey);
+        scrollToVerse(el);
       } else if (!hasNextPage) {
         resumedRef.current = true;
       }
@@ -426,7 +419,6 @@ export function Reader({
               arabicSize={arabicSize}
               onVisible={handleVerseVisible}
               onWordTap={tapDictionary ? handleWordTap : undefined}
-              resumeKey={resumeKey}
             />
           ) : (
             group.verses.map((verse) => (
@@ -436,7 +428,6 @@ export function Reader({
                 onVisible={handleVerseVisible}
                 arabicSize={arabicSize}
                 onWordTap={handleWordTap}
-                resumeKey={resumeKey}
               />
             ))
           )}
@@ -587,13 +578,11 @@ function MushafGroup({
   arabicSize,
   onVisible,
   onWordTap,
-  resumeKey,
 }: {
   verses: Verse[];
   arabicSize: number;
   onVisible: (v: Verse) => void;
   onWordTap?: (w: Word, verseKey: string) => void;
-  resumeKey: string | null;
 }) {
   const size = clampArabicSize(arabicSize);
   return (
@@ -610,7 +599,6 @@ function MushafGroup({
           markerClass={ARABIC_MARKER_SIZES[size]}
           onVisible={onVisible}
           onWordTap={onWordTap}
-          highlighted={resumeKey === verse.verse_key}
         />
       ))}
     </p>
@@ -622,13 +610,11 @@ function MushafVerse({
   markerClass,
   onVisible,
   onWordTap,
-  highlighted,
 }: {
   verse: Verse;
   markerClass: string;
   onVisible: (v: Verse) => void;
   onWordTap?: (w: Word, verseKey: string) => void;
-  highlighted: boolean;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
 
@@ -652,7 +638,6 @@ function MushafVerse({
       ref={ref}
       id={`verse-${verse.verse_number}`}
       data-verse-key={verse.verse_key}
-      className={highlighted ? 'outline outline-[3px] outline-ink outline-offset-2' : undefined}
     >
       {words?.length && onWordTap
         ? words.map((word, i) => (
@@ -693,13 +678,11 @@ function VisibleVerseCard({
   onVisible,
   arabicSize,
   onWordTap,
-  resumeKey,
 }: {
   verse: Verse;
   onVisible: (v: Verse) => void;
   arabicSize: number;
   onWordTap: (w: Word, verseKey: string) => void;
-  resumeKey: string | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -720,7 +703,6 @@ function VisibleVerseCard({
     <div
       ref={ref}
       data-verse-key={verse.verse_key}
-      className={resumeKey === verse.verse_key ? 'outline outline-[3px] outline-ink outline-offset-[-2px]' : undefined}
     >
       <VerseCard verse={verse} arabicSize={arabicSize} onWordTap={onWordTap} />
     </div>
