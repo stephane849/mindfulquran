@@ -6,10 +6,13 @@ import { useAppStore } from '@/lib/store';
 import type { LastRead } from '@/lib/types';
 
 function readLink(r: LastRead): string {
-  if (r.source === 'juz' && r.sourceId) return `/juz/${r.sourceId}#verse-${r.verseNumber}`;
-  if (r.source === 'hizb' && r.sourceId) return `/hizb/${r.sourceId}#verse-${r.verseNumber}`;
-  if (r.source === 'chapter') return `/surah/${r.surahId}?awrad=1#verse-${r.verseNumber}`;
-  return `/surah/${r.surahId}#verse-${r.verseNumber}`;
+  // Use the full verse_key (#vk-2:150) so resume is collision-free in
+  // juz/hizb mode where multiple surahs share the same verse numbers.
+  const frag = `#vk-${r.verseKey}`;
+  if (r.source === 'juz' && r.sourceId) return `/juz/${r.sourceId}${frag}`;
+  if (r.source === 'hizb' && r.sourceId) return `/hizb/${r.sourceId}${frag}`;
+  if (r.source === 'chapter') return `/surah/${r.surahId}?awrad=1${frag}`;
+  return `/surah/${r.surahId}${frag}`;
 }
 
 function readLabel(r: LastRead): string {

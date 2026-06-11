@@ -100,7 +100,7 @@ async function loadRoots(): Promise<Record<string, string[]>> {
 
 // ─── Pagination helper ────────────────────────────────────────────────────────
 
-const PER_PAGE = 50;
+const PER_PAGE = 9999; // load the entire section in one shot
 
 function toVerse(v: OfflineVerse, translationId: number | null, withWords: boolean): Verse {
   const out: Verse = {

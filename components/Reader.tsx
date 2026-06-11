@@ -123,8 +123,16 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
     return () => obs.disconnect();
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-  // Resume at #verse-N from Continue Reading, fast-forwarding pages until
-  // the target element is in the DOM. Also restores position after a
+  // Scroll a verse element into view with its top flush below the sticky
+  // TopBar rather than hidden behind it.
+  const scrollToVerse = (el: HTMLElement) => {
+    el.scrollIntoView({ behavior: 'instant', block: 'start' });
+    const nav = document.querySelector('nav.sticky') as HTMLElement | null;
+    const navH = nav ? nav.getBoundingClientRect().bottom : 64;
+    window.scrollBy({ top: -navH, behavior: 'instant' });
+  };
+
+  // Resume at saved position or #end. Also restores position after a
   // translation queryKey change flushes the cached data.
   useEffect(() => {
     if (!data) return;
@@ -135,16 +143,16 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
       const el = document.querySelector(`[data-verse-key="${key}"]`) as HTMLElement | null;
       if (el) {
         pendingScrollKeyRef.current = null;
-        el.scrollIntoView({ behavior: 'instant', block: 'start' });
+        scrollToVerse(el);
       }
       return;
     }
 
-    // Hash-based resume from the Continue Reading banner
     if (resumedRef.current) return;
     const hash = window.location.hash;
-    // #end: arrived by paging backward — load every page, then start at
-    // the bottom so volume-up flows continuously through sections.
+
+    // #end: arrived by paging backward — scroll to the bottom so
+    // volume-up continues the flow seamlessly.
     if (hash === '#end') {
       if (hasNextPage) {
         if (!isFetchingNextPage) fetchNextPage();
@@ -154,11 +162,26 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
       }
       return;
     }
+
+    // #vk-2:150 — verse_key hash from LastReadBanner (collision-free)
+    if (hash.startsWith('#vk-')) {
+      const verseKey = hash.slice(4);
+      const el = document.querySelector(`[data-verse-key="${verseKey}"]`) as HTMLElement | null;
+      if (el) {
+        resumedRef.current = true;
+        scrollToVerse(el);
+      } else if (!hasNextPage) {
+        resumedRef.current = true; // verse not found; section fully loaded
+      }
+      return;
+    }
+
+    // Legacy #verse-N format (bookmarks saved before the vk- switch)
     if (!hash.startsWith('#verse-')) return;
-    const el = document.getElementById(hash.slice(1));
+    const el = document.getElementById(hash.slice(1)) as HTMLElement | null;
     if (el) {
       resumedRef.current = true;
-      el.scrollIntoView({ behavior: 'instant', block: 'start' });
+      scrollToVerse(el);
     } else if (hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     } else if (!hasNextPage) {
@@ -421,7 +444,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
           Recitation speed
         </p>
         <div className="flex gap-2">
-          {([60, 90, 120] as const).map((wpm) => (
+          {([45, 60, 90, 120] as const).map((wpm) => (
             <button
               key={wpm}
               onClick={() => setRecitationSpeed(wpm)}
