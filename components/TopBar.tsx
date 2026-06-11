@@ -24,7 +24,7 @@ export function TopBar({
       </button>
       <span className="text-xl font-bold truncate flex-1">{title}</span>
       {progress && (
-        <span className="text-xs text-ink/60 shrink-0 whitespace-nowrap">{progress}</span>
+        <span className="text-xs text-ink shrink-0 whitespace-nowrap">{progress}</span>
       )}
       {right}
     </nav>

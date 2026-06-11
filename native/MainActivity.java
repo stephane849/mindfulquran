@@ -9,6 +9,7 @@ public class MainActivity extends BridgeActivity {
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
     if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+      if (event.getRepeatCount() > 0) return true;
       final String dir = keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ? "down" : "up";
       runOnUiThread(() ->
           getBridge().getWebView().evaluateJavascript(

@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+
 // BottomSheetMMD: instant (no animation), 3px top divider, drag-handle bar,
 // invisible backdrop — e-ink has no use for dimming
 export function BottomSheet({
@@ -11,6 +13,15 @@ export function BottomSheet({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   if (!open) return null;
 
   return (

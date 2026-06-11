@@ -46,7 +46,7 @@ export default function SearchPage() {
           onChange={(e) => setInput(e.target.value)}
           placeholder="Search the Quran…"
           autoFocus
-          className="flex-1 min-w-0 h-12 px-3 text-lg bg-paper border-2 border-ink rounded-lg placeholder:text-ink/100"
+          className="flex-1 min-w-0 h-12 px-3 text-lg bg-paper border-2 border-ink rounded-lg placeholder:text-ink"
         />
         <button
           type="submit"

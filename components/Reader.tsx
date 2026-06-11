@@ -299,7 +299,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
       visibleVerseKeyRef.current = verse.verse_key;
       setVisibleVerseKey(verse.verse_key);
       if (isAwradRef.current) {
-        setAwradLastRead(payload);
+        setAwradLastRead({ ...payload, source: 'chapter' });
       } else if (source === 'juz') {
         setJuzLastRead({ ...payload, source: 'juz', sourceId: id });
       } else if (source === 'hizb') {
@@ -308,7 +308,7 @@ export function Reader({ source, id }: { source: ReaderSource; id: number }) {
         setLastRead(payload);
       }
     },
-    [chapters, setLastRead, setAwradLastRead]
+    [chapters, source, id, setLastRead, setAwradLastRead, setJuzLastRead, setHizbLastRead]
   );
 
   const handleWordTap = useCallback(

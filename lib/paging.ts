@@ -41,7 +41,7 @@ export function getPageHeight(): number {
 // reader was nudged slightly by a touch drag.
 export function pageDelta(dir: 'up' | 'down'): number {
   const pH = getPageHeight();
-  const currentIdx = Math.round(window.scrollY / pH);
+  const currentIdx = Math.floor(window.scrollY / pH);
   const targetIdx = dir === 'down' ? currentIdx + 1 : Math.max(0, currentIdx - 1);
   return targetIdx * pH - window.scrollY;
 }

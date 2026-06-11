@@ -36,7 +36,7 @@ export function AwradSection({ chapters }: { chapters: Chapter[] | undefined }) 
               </span>
             </button>
             {isOpen && (
-              <ol className="border-t border-ink/30">
+              <ol className="border-t-[3px] border-ink">
                 {group.ids.map((surahId, liIdx) => {
                   const c = chapters.find((ch) => ch.id === surahId);
                   if (!c) return null;
