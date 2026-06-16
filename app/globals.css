@@ -15,7 +15,8 @@
 
 html {
   -webkit-text-size-adjust: 100%;
-  max-width: 480px;
+  --content-w: 480px;
+  max-width: var(--content-w);
   margin-inline: auto;
 }
 

@@ -69,12 +69,6 @@ export function ScrollBar() {
     thumbTop: number;
     thumbHeight: number;
   } | null>(null);
-  const [rightOffset, setRightOffset] = useState(0);
-
-  const updateRight = useCallback(() => {
-    const rect = document.documentElement.getBoundingClientRect();
-    setRightOffset(Math.max(0, window.innerWidth - rect.right));
-  }, []);
 
   const update = useCallback(() => {
     const total = document.documentElement.scrollHeight;
@@ -94,19 +88,17 @@ export function ScrollBar() {
   }, []);
 
   useEffect(() => {
-    const onResize = () => { updateRight(); update(); };
-    updateRight();
     update();
     window.addEventListener('scroll', update, { passive: true });
-    window.addEventListener('resize', onResize);
-    const obs = new ResizeObserver(onResize);
+    window.addEventListener('resize', update);
+    const obs = new ResizeObserver(update);
     obs.observe(document.body);
     return () => {
       window.removeEventListener('scroll', update);
-      window.removeEventListener('resize', onResize);
+      window.removeEventListener('resize', update);
       obs.disconnect();
     };
-  }, [update, updateRight]);
+  }, [update]);
 
   const page = (dir: 'up' | 'down') => {
     window.scrollBy({ top: pageDelta(dir), behavior: 'instant' });
@@ -123,7 +115,7 @@ export function ScrollBar() {
   return (
     <div
       className="fixed top-0 bottom-0 w-[28px] z-50 flex flex-col items-center bg-paper"
-      style={{ right: rightOffset }}
+      style={{ right: 'max(calc((100vw - var(--content-w)) / 2), 0px)' }}
     >
       <RailButton
         dir="up"
