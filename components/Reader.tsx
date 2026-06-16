@@ -719,6 +719,7 @@ function MushafGroup({
             onVisible={onVisible}
             onWordTap={onWordTap}
             onMarkerTap={onMarkerTap}
+            stripRub={rubStartKeys?.has(verse.verse_key) === true}
           />
         </Fragment>
       ))}
@@ -732,12 +733,14 @@ function MushafVerse({
   onVisible,
   onWordTap,
   onMarkerTap,
+  stripRub,
 }: {
   verse: Verse;
   markerClass: string;
   onVisible: (v: Verse) => void;
   onWordTap?: (w: Word, verseKey: string) => void;
   onMarkerTap?: (verseKey: string) => void;
+  stripRub?: boolean;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
 
@@ -775,7 +778,7 @@ function MushafVerse({
               </button>
             </Fragment>
           ))
-        : verse.text_uthmani}
+        : stripRub ? verse.text_uthmani.replace(/^۞\s*/, '') : verse.text_uthmani}
       {onMarkerTap ? (
         <button
           type="button"
