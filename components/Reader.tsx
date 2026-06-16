@@ -134,18 +134,6 @@ export function Reader({
     return { map, total };
   }, [data, prerendered]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Verses that start a new rub el hizb (quarter-Hizb boundary).
-  // Computed from allVerses only — prerendered verses lack rub_el_hizb_number.
-  const rubStartKeys = useMemo(() => {
-    const keys = new Set<string>();
-    let prevRub = allVerses[0]?.rub_el_hizb_number ?? -1;
-    for (let i = 1; i < allVerses.length; i++) {
-      const rub = allVerses[i].rub_el_hizb_number;
-      if (rub !== prevRub) { keys.add(allVerses[i].verse_key); prevRub = rub; }
-    }
-    return keys;
-  }, [allVerses]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Auto-load next page when bottom sentinel enters viewport
   useEffect(() => {
     const el = loaderRef.current;
@@ -482,7 +470,6 @@ export function Reader({
               onVisible={handleVerseVisible}
               onWordTap={tapDictionary ? handleWordTap : undefined}
               onMarkerTap={setSelectedTransKey}
-              rubStartKeys={rubStartKeys}
               onRubTap={setSelectedRubVerse}
             />
           ) : (
@@ -682,7 +669,6 @@ function MushafGroup({
   onVisible,
   onWordTap,
   onMarkerTap,
-  rubStartKeys,
   onRubTap,
 }: {
   verses: Verse[];
@@ -690,7 +676,6 @@ function MushafGroup({
   onVisible: (v: Verse) => void;
   onWordTap?: (w: Word, verseKey: string) => void;
   onMarkerTap?: (verseKey: string) => void;
-  rubStartKeys?: Set<string>;
   onRubTap?: (verse: Verse) => void;
 }) {
   const size = clampArabicSize(arabicSize);
@@ -702,26 +687,15 @@ function MushafGroup({
       lang="ar"
     >
       {verses.map((verse) => (
-        <Fragment key={verse.id}>
-          {rubStartKeys?.has(verse.verse_key) && onRubTap && (
-            <button
-              type="button"
-              onClick={() => onRubTap(verse)}
-              className="inline px-1"
-              aria-label="Rub el hizb marker"
-            >
-              ۞
-            </button>
-          )}
-          <MushafVerse
-            verse={verse}
-            markerClass={ARABIC_MARKER_SIZES[size]}
-            onVisible={onVisible}
-            onWordTap={onWordTap}
-            onMarkerTap={onMarkerTap}
-            stripRub={rubStartKeys?.has(verse.verse_key) === true}
-          />
-        </Fragment>
+        <MushafVerse
+          key={verse.id}
+          verse={verse}
+          markerClass={ARABIC_MARKER_SIZES[size]}
+          onVisible={onVisible}
+          onWordTap={onWordTap}
+          onMarkerTap={onMarkerTap}
+          onRubTap={onRubTap}
+        />
       ))}
     </p>
   );
@@ -733,14 +707,14 @@ function MushafVerse({
   onVisible,
   onWordTap,
   onMarkerTap,
-  stripRub,
+  onRubTap,
 }: {
   verse: Verse;
   markerClass: string;
   onVisible: (v: Verse) => void;
   onWordTap?: (w: Word, verseKey: string) => void;
   onMarkerTap?: (verseKey: string) => void;
-  stripRub?: boolean;
+  onRubTap?: (verse: Verse) => void;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
 
@@ -758,6 +732,8 @@ function MushafVerse({
   }, [verse, onVisible]);
 
   const words = verse.words?.filter((w) => w.char_type_name === 'word');
+  const hasRub = verse.text_uthmani.startsWith('۞');
+  const bodyText = hasRub ? verse.text_uthmani.replace(/^۞\s*/, '') : verse.text_uthmani;
 
   return (
     <span
@@ -765,6 +741,11 @@ function MushafVerse({
       id={`verse-${verse.verse_number}`}
       data-verse-key={verse.verse_key}
     >
+      {hasRub && (
+        onRubTap
+          ? <button type="button" onClick={() => onRubTap(verse)} className="inline px-1" aria-label="Rub el hizb marker">۞</button>
+          : <span className="px-1">۞</span>
+      )}
       {words?.length && onWordTap
         ? words.map((word, i) => (
             <Fragment key={word.id}>
@@ -778,7 +759,7 @@ function MushafVerse({
               </button>
             </Fragment>
           ))
-        : stripRub ? verse.text_uthmani.replace(/^۞\s*/, '') : verse.text_uthmani}
+        : bodyText}
       {onMarkerTap ? (
         <button
           type="button"
