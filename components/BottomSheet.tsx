@@ -27,9 +27,19 @@ export function BottomSheet({
   return (
     <div className="fixed inset-0 z-[60] mx-auto max-w-[480px]">
       <button aria-label="Close" className="absolute inset-0 w-full" onClick={onClose} />
-      <div className="absolute inset-x-0 bottom-0 bg-paper border-t-[3px] border-ink max-h-[75vh] overflow-y-auto px-4 pb-6">
-        <div className="mx-auto mt-2 mb-1 h-1.5 w-12 rounded-full bg-ink" />
-        {children}
+      <div className="absolute inset-x-0 bottom-0 bg-paper border-t-[3px] border-ink max-h-[75vh] flex flex-col">
+        <div className="flex items-center justify-end px-4 pt-3 pb-1 shrink-0">
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="text-base font-bold border-2 border-ink rounded-lg px-3 py-1"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="overflow-y-auto px-4 pb-6">
+          {children}
+        </div>
       </div>
     </div>
   );
