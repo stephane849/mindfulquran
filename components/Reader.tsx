@@ -574,10 +574,13 @@ export function Reader({
           const isRubFirst = selected.word.position === 1 && selected.verse.text_uthmani.startsWith('۞');
           const rubInHizb = isRubFirst ? (selected.verse.rub_el_hizb_number - 1) % 4 : -1;
           const fraction = ['', '¼ ', '½ ', '¾ '][rubInHizb] ?? '';
+          const wordDisplay = isRubFirst
+            ? selected.word.text_uthmani.replace(/^۞\s*/, '')
+            : selected.word.text_uthmani;
           return (
           <div className="text-center py-4">
             <p className="font-arabic text-5xl leading-loose" dir="rtl" lang="ar">
-              {isRubFirst && <span className="ml-3">۞</span>}{selected.word.text_uthmani}
+              {isRubFirst && <span className="ml-3">۞</span>}{wordDisplay}
             </p>
             {isRubFirst && (
               <p className="text-[13px] font-bold uppercase tracking-widest mb-2">
