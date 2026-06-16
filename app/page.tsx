@@ -32,11 +32,11 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-paper">
       <header className="pl-4 pr-4 pt-5 pb-4 border-b-[3px] border-ink flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/icon-192.png" alt="" width={40} height={40} className="rounded-lg border-2 border-ink shrink-0" />
           <h1 className="text-xl font-bold">MindfulQuran</h1>
-        </div>
+        </Link>
         <div className="flex gap-2 shrink-0">
           <Link
             href="/search"
