@@ -46,8 +46,8 @@ jobs:
             echo "name=Mindful Quran $GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=v1.3.1-alpha.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
-            echo "name=Mindful Quran v1.3.1-alpha.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+            echo "tag=v1.3.2-alpha.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+            echo "name=Mindful Quran v1.3.2-alpha.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
           fi
 
