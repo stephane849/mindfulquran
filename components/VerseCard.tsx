@@ -10,7 +10,7 @@ import {
 interface Props {
   verse: Verse;
   arabicSize?: number;
-  onWordTap?: (word: Word, verseKey: string) => void;
+  onWordTap?: (word: Word, verse: Verse) => void;
   ref?: React.Ref<HTMLDivElement>;
 }
 
@@ -32,7 +32,7 @@ export function VerseCard({ verse, arabicSize = 1, onWordTap, ref }: Props) {
             <span key={word.id}>
               {i > 0 && ' '}
               <button
-                onClick={() => onWordTap(word, verse.verse_key)}
+                onClick={() => onWordTap(word, verse)}
                 onContextMenu={(e) => e.preventDefault()}
                 className="select-none [user-select:none] [-webkit-user-select:none]"
               >

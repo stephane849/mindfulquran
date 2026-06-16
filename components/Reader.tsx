@@ -65,9 +65,8 @@ export function Reader({
   const isAwradRef = useRef(false);
   const sheetHistoryRef = useRef(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [selected, setSelected] = useState<{ word: Word; verseKey: string } | null>(null);
+  const [selected, setSelected] = useState<{ word: Word; verseKey: string; verse: Verse } | null>(null);
   const [selectedTransKey, setSelectedTransKey] = useState<string | null>(null);
-  const [selectedRubVerse, setSelectedRubVerse] = useState<Verse | null>(null);
   const [visibleVerseKey, setVisibleVerseKey] = useState<string | null>(null);
   // Persisted state differs from the prerendered HTML — gate it until mounted
   const [mounted, setMounted] = useState(false);
@@ -246,11 +245,11 @@ export function Reader({
   }, [source, id, router]);
 
   useEffect(() => {
-    if ((settingsOpen || selected !== null || selectedTransKey !== null || selectedRubVerse !== null) && !sheetHistoryRef.current) {
+    if ((settingsOpen || selected !== null || selectedTransKey !== null) && !sheetHistoryRef.current) {
       window.history.pushState({ mindful: 'sheet' }, '');
       sheetHistoryRef.current = true;
     }
-  }, [settingsOpen, selected, selectedTransKey, selectedRubVerse]);
+  }, [settingsOpen, selected, selectedTransKey]);
 
   useEffect(() => {
     const onPop = () => {
@@ -259,7 +258,6 @@ export function Reader({
         setSettingsOpen(false);
         setSelected(null);
         setSelectedTransKey(null);
-        setSelectedRubVerse(null);
       }
     };
     window.addEventListener('popstate', onPop);
@@ -321,7 +319,7 @@ export function Reader({
   );
 
   const handleWordTap = useCallback(
-    (word: Word, verseKey: string) => setSelected({ word, verseKey }),
+    (word: Word, verse: Verse) => setSelected({ word, verseKey: verse.verse_key, verse }),
     []
   );
 
@@ -343,14 +341,6 @@ export function Reader({
 
   const closeTranslation = () => {
     setSelectedTransKey(null);
-    if (sheetHistoryRef.current) {
-      sheetHistoryRef.current = false;
-      window.history.back();
-    }
-  };
-
-  const closeRubSheet = () => {
-    setSelectedRubVerse(null);
     if (sheetHistoryRef.current) {
       sheetHistoryRef.current = false;
       window.history.back();
@@ -470,7 +460,6 @@ export function Reader({
               onVisible={handleVerseVisible}
               onWordTap={tapDictionary ? handleWordTap : undefined}
               onMarkerTap={setSelectedTransKey}
-              onRubTap={setSelectedRubVerse}
             />
           ) : (
             group.verses.map((verse) => (
@@ -581,11 +570,20 @@ export function Reader({
 
       {/* Word dictionary */}
       <BottomSheet open={selected !== null} onClose={closeSelected}>
-        {selected && (
+        {selected && (() => {
+          const isRubFirst = selected.word.position === 1 && selected.verse.text_uthmani.startsWith('۞');
+          const rubInHizb = isRubFirst ? (selected.verse.rub_el_hizb_number - 1) % 4 : -1;
+          const fraction = ['', '¼ ', '½ ', '¾ '][rubInHizb] ?? '';
+          return (
           <div className="text-center py-4">
             <p className="font-arabic text-5xl leading-loose" dir="rtl" lang="ar">
-              {selected.word.text_uthmani}
+              {isRubFirst && <span className="ml-3">۞</span>}{selected.word.text_uthmani}
             </p>
+            {isRubFirst && (
+              <p className="text-[13px] font-bold uppercase tracking-widest mb-2">
+                Juz {selected.verse.juz_number} · {fraction}Hizb {selected.verse.hizb_number}
+              </p>
+            )}
             {selected.word.transliteration?.text && (
               <p className="text-lg italic mt-1">{selected.word.transliteration.text}</p>
             )}
@@ -618,7 +616,7 @@ export function Reader({
               </div>
             )}
           </div>
-        )}
+        );})()}
       </BottomSheet>
 
       {/* Verse translation (tap ﴿n﴾ marker in mushaf mode) */}
@@ -641,23 +639,6 @@ export function Reader({
         )}
       </BottomSheet>
 
-      {/* Rub el hizb info (tap ۞ rosette in mushaf mode) */}
-      <BottomSheet open={selectedRubVerse !== null} onClose={closeRubSheet}>
-        {selectedRubVerse && (() => {
-          const rubInHizb = (selectedRubVerse.rub_el_hizb_number - 1) % 4;
-          const fraction = ['', '¼ ', '½ ', '¾ '][rubInHizb];
-          return (
-            <div className="py-4 text-center">
-              <p className="font-arabic text-6xl leading-none mb-4">۞</p>
-              <p className="text-2xl font-bold">Juz {selectedRubVerse.juz_number}</p>
-              <p className="text-xl mt-1">{fraction}Hizb {selectedRubVerse.hizb_number}</p>
-              <p className="text-[13px] mt-4 font-bold uppercase tracking-widest">
-                From {selectedRubVerse.verse_key}
-              </p>
-            </div>
-          );
-        })()}
-      </BottomSheet>
     </div>
   );
 }
@@ -669,14 +650,12 @@ function MushafGroup({
   onVisible,
   onWordTap,
   onMarkerTap,
-  onRubTap,
 }: {
   verses: Verse[];
   arabicSize: number;
   onVisible: (v: Verse) => void;
-  onWordTap?: (w: Word, verseKey: string) => void;
+  onWordTap?: (w: Word, verse: Verse) => void;
   onMarkerTap?: (verseKey: string) => void;
-  onRubTap?: (verse: Verse) => void;
 }) {
   const size = clampArabicSize(arabicSize);
   return (
@@ -694,7 +673,6 @@ function MushafGroup({
           onVisible={onVisible}
           onWordTap={onWordTap}
           onMarkerTap={onMarkerTap}
-          onRubTap={onRubTap}
         />
       ))}
     </p>
@@ -707,14 +685,12 @@ function MushafVerse({
   onVisible,
   onWordTap,
   onMarkerTap,
-  onRubTap,
 }: {
   verse: Verse;
   markerClass: string;
   onVisible: (v: Verse) => void;
-  onWordTap?: (w: Word, verseKey: string) => void;
+  onWordTap?: (w: Word, verse: Verse) => void;
   onMarkerTap?: (verseKey: string) => void;
-  onRubTap?: (verse: Verse) => void;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
 
@@ -732,8 +708,6 @@ function MushafVerse({
   }, [verse, onVisible]);
 
   const words = verse.words?.filter((w) => w.char_type_name === 'word');
-  const hasRub = verse.text_uthmani.startsWith('۞');
-  const bodyText = hasRub ? verse.text_uthmani.replace(/^۞\s*/, '') : verse.text_uthmani;
 
   return (
     <span
@@ -741,17 +715,12 @@ function MushafVerse({
       id={`verse-${verse.verse_number}`}
       data-verse-key={verse.verse_key}
     >
-      {hasRub && (
-        onRubTap
-          ? <button type="button" onClick={() => onRubTap(verse)} className="inline px-1" aria-label="Rub el hizb marker">۞</button>
-          : <span className="px-1">۞</span>
-      )}
       {words?.length && onWordTap
         ? words.map((word, i) => (
             <Fragment key={word.id}>
               {i > 0 && ' '}
               <button
-                onClick={() => onWordTap(word, verse.verse_key)}
+                onClick={() => onWordTap(word, verse)}
                 onContextMenu={(e) => e.preventDefault()}
                 className="inline select-none [user-select:none] [-webkit-user-select:none]"
               >
@@ -759,7 +728,7 @@ function MushafVerse({
               </button>
             </Fragment>
           ))
-        : bodyText}
+        : verse.text_uthmani}
       {onMarkerTap ? (
         <button
           type="button"
@@ -799,7 +768,7 @@ function VisibleVerseCard({
   verse: Verse;
   onVisible: (v: Verse) => void;
   arabicSize: number;
-  onWordTap: (w: Word, verseKey: string) => void;
+  onWordTap: (w: Word, verse: Verse) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
