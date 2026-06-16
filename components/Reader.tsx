@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { getChapters, getVersesBy, ENGLISH_TRANSLATIONS, type ReaderSource } from '@/lib/api';
+import { getChapters, getVersesBy, getVerseTranslation, ENGLISH_TRANSLATIONS, type ReaderSource } from '@/lib/api';
 import { SurahHeader } from '@/components/SurahHeader';
 import { TopBar } from '@/components/TopBar';
 import { VerseCard } from '@/components/VerseCard';
@@ -66,6 +66,7 @@ export function Reader({
   const sheetHistoryRef = useRef(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selected, setSelected] = useState<{ word: Word; verseKey: string } | null>(null);
+  const [selectedTransKey, setSelectedTransKey] = useState<string | null>(null);
   const [visibleVerseKey, setVisibleVerseKey] = useState<string | null>(null);
   // Persisted state differs from the prerendered HTML — gate it until mounted
   const [mounted, setMounted] = useState(false);
@@ -244,11 +245,11 @@ export function Reader({
   }, [source, id, router]);
 
   useEffect(() => {
-    if ((settingsOpen || selected !== null) && !sheetHistoryRef.current) {
+    if ((settingsOpen || selected !== null || selectedTransKey !== null) && !sheetHistoryRef.current) {
       window.history.pushState({ mindful: 'sheet' }, '');
       sheetHistoryRef.current = true;
     }
-  }, [settingsOpen, selected]);
+  }, [settingsOpen, selected, selectedTransKey]);
 
   useEffect(() => {
     const onPop = () => {
@@ -256,6 +257,7 @@ export function Reader({
         sheetHistoryRef.current = false;
         setSettingsOpen(false);
         setSelected(null);
+        setSelectedTransKey(null);
       }
     };
     window.addEventListener('popstate', onPop);
@@ -320,6 +322,30 @@ export function Reader({
     (word: Word, verseKey: string) => setSelected({ word, verseKey }),
     []
   );
+
+  const { data: verseTransText } = useQuery({
+    queryKey: ['verse-trans', selectedTransKey, translationId],
+    queryFn: () => getVerseTranslation(selectedTransKey!, translationId),
+    enabled: selectedTransKey !== null,
+    staleTime: Infinity,
+  });
+
+  const selectedTransVerse = selectedTransKey
+    ? displayVerses.find((v) => v.verse_key === selectedTransKey) ?? null
+    : null;
+  const selectedTransSurahId = selectedTransKey ? surahNumberOf(selectedTransKey) : null;
+  const selectedTransChapter = selectedTransSurahId
+    ? effectiveChapters?.find((c) => c.id === selectedTransSurahId)
+    : null;
+  const transName = ENGLISH_TRANSLATIONS.find((t) => t.id === translationId)?.name ?? '';
+
+  const closeTranslation = () => {
+    setSelectedTransKey(null);
+    if (sheetHistoryRef.current) {
+      sheetHistoryRef.current = false;
+      window.history.back();
+    }
+  };
 
   const selectedSurah = selected ? surahNumberOf(selected.verseKey) : null;
   const { data: morphology } = useQuery({
@@ -433,6 +459,7 @@ export function Reader({
               arabicSize={arabicSize}
               onVisible={handleVerseVisible}
               onWordTap={tapDictionary ? handleWordTap : undefined}
+              onMarkerTap={setSelectedTransKey}
             />
           ) : (
             group.verses.map((verse) => (
@@ -582,6 +609,26 @@ export function Reader({
           </div>
         )}
       </BottomSheet>
+
+      {/* Verse translation (tap ﴿n﴾ marker in mushaf mode) */}
+      <BottomSheet open={selectedTransKey !== null} onClose={closeTranslation}>
+        {selectedTransVerse && (
+          <div className="py-4">
+            <p className="text-[13px] font-bold uppercase tracking-widest text-center mb-4">
+              {selectedTransChapter?.name_simple} · {selectedTransKey}
+            </p>
+            <p className="font-arabic text-2xl leading-loose text-right px-2 mb-4" dir="rtl" lang="ar">
+              {selectedTransVerse.text_uthmani}
+            </p>
+            {verseTransText && (
+              <>
+                <p className="text-[13px] font-bold uppercase tracking-widest mb-2">{transName}</p>
+                <p className="text-lg leading-relaxed">{verseTransText}</p>
+              </>
+            )}
+          </div>
+        )}
+      </BottomSheet>
     </div>
   );
 }
@@ -592,11 +639,13 @@ function MushafGroup({
   arabicSize,
   onVisible,
   onWordTap,
+  onMarkerTap,
 }: {
   verses: Verse[];
   arabicSize: number;
   onVisible: (v: Verse) => void;
   onWordTap?: (w: Word, verseKey: string) => void;
+  onMarkerTap?: (verseKey: string) => void;
 }) {
   const size = clampArabicSize(arabicSize);
   return (
@@ -613,6 +662,7 @@ function MushafGroup({
           markerClass={ARABIC_MARKER_SIZES[size]}
           onVisible={onVisible}
           onWordTap={onWordTap}
+          onMarkerTap={onMarkerTap}
         />
       ))}
     </p>
@@ -624,11 +674,13 @@ function MushafVerse({
   markerClass,
   onVisible,
   onWordTap,
+  onMarkerTap,
 }: {
   verse: Verse;
   markerClass: string;
   onVisible: (v: Verse) => void;
   onWordTap?: (w: Word, verseKey: string) => void;
+  onMarkerTap?: (verseKey: string) => void;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
 
@@ -667,7 +719,17 @@ function MushafVerse({
             </Fragment>
           ))
         : verse.text_uthmani}
-      <span className={markerClass}> ﴿{toArabicDigits(ayahNumberOf(verse.verse_key))}﴾ </span>
+      {onMarkerTap ? (
+        <button
+          type="button"
+          onClick={() => onMarkerTap(verse.verse_key)}
+          className={`${markerClass} inline`}
+        >
+          {' '}﴿{toArabicDigits(ayahNumberOf(verse.verse_key))}﴾{' '}
+        </button>
+      ) : (
+        <span className={markerClass}> ﴿{toArabicDigits(ayahNumberOf(verse.verse_key))}﴾ </span>
+      )}
     </span>
   );
 }

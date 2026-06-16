@@ -180,6 +180,16 @@ export async function getVersesBy(
   return paginate(rows, pageNum, translationId, withWords);
 }
 
+export async function getVerseTranslation(
+  verseKey: string,
+  translationId: number,
+): Promise<string | null> {
+  const [surahStr, verseStr] = verseKey.split(':');
+  const verses = await loadSurah(parseInt(surahStr, 10));
+  const v = verses.find((v) => v.verse_number === parseInt(verseStr, 10));
+  return v?.trs[String(translationId)] ?? null;
+}
+
 export async function searchQuran(query: string, pageNum: number): Promise<SearchResponse> {
   const q = query.trim();
   const PER = 20;
