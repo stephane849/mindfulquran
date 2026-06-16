@@ -215,7 +215,19 @@ export function Reader({
   useEffect(() => {
     const key = `${showTranslation}:${translationId}`;
     if (prevTranslationKeyRef.current !== '' && prevTranslationKeyRef.current !== key) {
-      pendingScrollKeyRef.current = visibleVerseKeyRef.current;
+      // Scan the DOM now; the IntersectionObserver ref may lag by several frames.
+      const navH = (document.querySelector('nav.sticky') as HTMLElement | null)
+        ?.getBoundingClientRect().bottom ?? 64;
+      let topKey: string | null = null;
+      let topY = Infinity;
+      for (const el of Array.from(document.querySelectorAll<HTMLElement>('[data-verse-key]'))) {
+        const rect = el.getBoundingClientRect();
+        if (rect.bottom > navH && rect.top < window.innerHeight && rect.top < topY) {
+          topY = rect.top;
+          topKey = el.dataset.verseKey ?? null;
+        }
+      }
+      pendingScrollKeyRef.current = topKey ?? visibleVerseKeyRef.current;
     }
     prevTranslationKeyRef.current = key;
   }, [showTranslation, translationId]);
