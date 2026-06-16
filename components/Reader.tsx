@@ -63,7 +63,6 @@ export function Reader({
   const visibleVerseKeyRef = useRef<string | null>(null);
   const pendingScrollKeyRef = useRef<string | null>(null);
   const isAwradRef = useRef(false);
-  const prevTranslationKeyRef = useRef('');
   const sheetHistoryRef = useRef(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selected, setSelected] = useState<{ word: Word; verseKey: string } | null>(null);
@@ -211,26 +210,6 @@ export function Reader({
     }
   }, [data, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // Capture visible verse before a translation change invalidates the query cache
-  useEffect(() => {
-    const key = `${showTranslation}:${translationId}`;
-    if (prevTranslationKeyRef.current !== '' && prevTranslationKeyRef.current !== key) {
-      // Scan the DOM now; the IntersectionObserver ref may lag by several frames.
-      const navH = (document.querySelector('nav.sticky') as HTMLElement | null)
-        ?.getBoundingClientRect().bottom ?? 64;
-      let topKey: string | null = null;
-      let topY = Infinity;
-      for (const el of Array.from(document.querySelectorAll<HTMLElement>('[data-verse-key]'))) {
-        const rect = el.getBoundingClientRect();
-        if (rect.bottom > navH && rect.top < window.innerHeight && rect.top < topY) {
-          topY = rect.top;
-          topKey = el.dataset.verseKey ?? null;
-        }
-      }
-      pendingScrollKeyRef.current = topKey ?? visibleVerseKeyRef.current;
-    }
-    prevTranslationKeyRef.current = key;
-  }, [showTranslation, translationId]);
 
   useEffect(() => {
     window.__readerEndState = {
@@ -368,6 +347,29 @@ export function Reader({
   // is persisted as true in localStorage).
   const mushafMode = !mounted ? true : !showTranslation;
 
+  // Call synchronously inside a click handler (before setState) so the DOM
+  // still reflects the old layout when we read bounding rects.
+  const captureTopVerse = () => {
+    const navH = (document.querySelector('nav.sticky') as HTMLElement | null)
+      ?.getBoundingClientRect().bottom ?? 64;
+    let bestKey: string | null = null;
+    let bestBelowTop = Infinity;
+    let bestAboveKey: string | null = null;
+    let bestAboveTop = -Infinity;
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>('[data-verse-key]'))) {
+      const rect = el.getBoundingClientRect();
+      if (rect.bottom <= navH || rect.top >= window.innerHeight) continue;
+      const key = el.dataset.verseKey;
+      if (!key) continue;
+      if (rect.top >= navH) {
+        if (rect.top < bestBelowTop) { bestBelowTop = rect.top; bestKey = key; }
+      } else {
+        if (rect.top > bestAboveTop) { bestAboveTop = rect.top; bestAboveKey = key; }
+      }
+    }
+    pendingScrollKeyRef.current = bestKey ?? bestAboveKey ?? visibleVerseKeyRef.current;
+  };
+
   // Progress: percentage + time remaining, both from real Arabic word counts
   let progressText: string | undefined;
   if (mounted && wordMap.total > 0) {
@@ -394,7 +396,7 @@ export function Reader({
                 Aa
               </button>
               <button
-                onClick={() => setShowTranslation(!showTranslation)}
+                onClick={() => { captureTopVerse(); setShowTranslation(!showTranslation); }}
                 aria-pressed={showTranslation}
                 className={`text-base font-bold border-2 border-ink rounded-lg px-3 py-1 ${
                   showTranslation ? 'bg-ink text-paper' : 'bg-paper text-ink'
@@ -516,7 +518,7 @@ export function Reader({
         <ul>
           <li>
             <button
-              onClick={() => setShowTranslation(false)}
+              onClick={() => { captureTopVerse(); setShowTranslation(false); }}
               className="w-full flex items-center justify-between py-3 divider-dotted text-left"
             >
               <span className="text-lg font-bold">Arabic only</span>
@@ -526,7 +528,7 @@ export function Reader({
           {ENGLISH_TRANSLATIONS.map((t) => (
             <li key={t.id}>
               <button
-                onClick={() => setTranslationId(t.id)}
+                onClick={() => { captureTopVerse(); setTranslationId(t.id); }}
                 className="w-full flex items-center justify-between py-3 divider-dotted text-left"
               >
                 <span className="text-lg font-bold">{t.name}</span>
