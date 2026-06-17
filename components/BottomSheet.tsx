@@ -25,7 +25,7 @@ export function BottomSheet({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] mx-auto max-w-[480px]">
+    <div className="fixed inset-0 z-[60] mx-auto max-w-[var(--content-w)]">
       <button aria-label="Close" className="absolute inset-0 w-full" onClick={onClose} />
       <div className="absolute inset-x-0 bottom-0 bg-paper border-t-[3px] border-ink max-h-[75vh] flex flex-col">
         <div className="flex items-center justify-end px-4 pt-3 pb-1 shrink-0">
