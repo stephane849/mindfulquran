@@ -58,6 +58,8 @@ export function Reader({
   const setHizbLastRead = useAppStore((s) => s.setHizbLastRead);
   const recitationSpeed = useAppStore((s) => s.recitationSpeed);
   const setRecitationSpeed = useAppStore((s) => s.setRecitationSpeed);
+  const memorizeMode = useAppStore((s) => s.memorizeMode);
+  const setMemorizeMode = useAppStore((s) => s.setMemorizeMode);
   const loaderRef = useRef<HTMLDivElement>(null);
   const resumedRef = useRef(false);
   const visibleVerseKeyRef = useRef<string | null>(null);
@@ -68,6 +70,7 @@ export function Reader({
   const [selected, setSelected] = useState<{ word: Word; verseKey: string; verse: Verse } | null>(null);
   const [selectedTransKey, setSelectedTransKey] = useState<string | null>(null);
   const [visibleVerseKey, setVisibleVerseKey] = useState<string | null>(null);
+  const [hiddenVerses, setHiddenVerses] = useState<Set<string>>(new Set());
   // Persisted state differs from the prerendered HTML — gate it until mounted
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
@@ -100,8 +103,8 @@ export function Reader({
       ? `Juz ${id}`
       : `Hizb ${id}`;
 
-  const effectiveTranslation = mounted && showTranslation ? translationId : null;
-  const withWords = mounted && tapDictionary;
+  const effectiveTranslation = mounted && showTranslation && !memorizeMode ? translationId : null;
+  const withWords = mounted && tapDictionary && !memorizeMode;
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
     useInfiniteQuery({
@@ -323,6 +326,19 @@ export function Reader({
     []
   );
 
+  const handleToggleHide = useCallback((verseKey: string) => {
+    setHiddenVerses((prev) => {
+      const next = new Set(prev);
+      if (next.has(verseKey)) next.delete(verseKey);
+      else next.add(verseKey);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!memorizeMode) setHiddenVerses(new Set());
+  }, [memorizeMode]);
+
   const { data: verseTransText } = useQuery({
     queryKey: ['verse-trans', selectedTransKey, translationId],
     queryFn: () => getVerseTranslation(selectedTransKey!, translationId),
@@ -371,7 +387,7 @@ export function Reader({
   // Before mount, always render mushaf so the server-rendered HTML matches the
   // first client render exactly (avoids hydration mismatch when showTranslation
   // is persisted as true in localStorage).
-  const mushafMode = !mounted ? true : !showTranslation;
+  const mushafMode = !mounted ? true : memorizeMode || !showTranslation;
 
   // Call synchronously inside a click handler (before setState) so the DOM
   // still reflects the old layout when we read bounding rects.
@@ -458,8 +474,10 @@ export function Reader({
               verses={group.verses}
               arabicSize={arabicSize}
               onVisible={handleVerseVisible}
-              onWordTap={tapDictionary ? handleWordTap : undefined}
-              onMarkerTap={setSelectedTransKey}
+              onWordTap={tapDictionary && !memorizeMode ? handleWordTap : undefined}
+              onMarkerTap={memorizeMode ? undefined : setSelectedTransKey}
+              onToggleHide={memorizeMode ? handleToggleHide : undefined}
+              hiddenVerses={memorizeMode ? hiddenVerses : undefined}
             />
           ) : (
             group.verses.map((verse) => (
@@ -487,6 +505,17 @@ export function Reader({
 
       {/* Quick reading settings */}
       <BottomSheet open={settingsOpen} onClose={closeSettings}>
+        <button
+          onClick={() => setMemorizeMode(!memorizeMode)}
+          aria-pressed={memorizeMode}
+          className="w-full flex items-center justify-between py-3 mt-2 divider-dotted text-left"
+        >
+          <span className="text-lg font-bold">Memorize</span>
+          <span className={`text-base font-bold border-2 border-ink rounded-lg px-3 py-1 ${memorizeMode ? 'bg-ink text-paper' : ''}`}>
+            {memorizeMode ? 'On' : 'Off'}
+          </span>
+        </button>
+
         <button
           onClick={() => setTapDictionary(!tapDictionary)}
           aria-pressed={tapDictionary}
@@ -653,12 +682,16 @@ function MushafGroup({
   onVisible,
   onWordTap,
   onMarkerTap,
+  onToggleHide,
+  hiddenVerses,
 }: {
   verses: Verse[];
   arabicSize: number;
   onVisible: (v: Verse) => void;
   onWordTap?: (w: Word, verse: Verse) => void;
   onMarkerTap?: (verseKey: string) => void;
+  onToggleHide?: (verseKey: string) => void;
+  hiddenVerses?: Set<string>;
 }) {
   const size = clampArabicSize(arabicSize);
   return (
@@ -676,6 +709,8 @@ function MushafGroup({
           onVisible={onVisible}
           onWordTap={onWordTap}
           onMarkerTap={onMarkerTap}
+          onToggleHide={onToggleHide}
+          isHidden={hiddenVerses?.has(verse.verse_key) ?? false}
         />
       ))}
     </p>
@@ -688,12 +723,16 @@ function MushafVerse({
   onVisible,
   onWordTap,
   onMarkerTap,
+  onToggleHide,
+  isHidden,
 }: {
   verse: Verse;
   markerClass: string;
   onVisible: (v: Verse) => void;
   onWordTap?: (w: Word, verse: Verse) => void;
   onMarkerTap?: (verseKey: string) => void;
+  onToggleHide?: (verseKey: string) => void;
+  isHidden?: boolean;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
 
@@ -711,6 +750,40 @@ function MushafVerse({
   }, [verse, onVisible]);
 
   const words = verse.words?.filter((w) => w.char_type_name === 'word');
+  const wordCount = words?.length || verse.text_uthmani.trim().split(/\s+/).length;
+
+  let textContent: React.ReactNode;
+  if (onToggleHide) {
+    textContent = (
+      <button
+        type="button"
+        onClick={() => onToggleHide(verse.verse_key)}
+        className="inline"
+        aria-label={isHidden ? 'Reveal verse' : 'Hide verse'}
+      >
+        {isHidden ? (
+          <span className="font-arabic select-none tracking-widest" aria-hidden="true">
+            {'· '.repeat(Math.ceil(wordCount / 2)).trim()}
+          </span>
+        ) : verse.text_uthmani}
+      </button>
+    );
+  } else if (words?.length && onWordTap) {
+    textContent = words.map((word, i) => (
+      <Fragment key={word.id}>
+        {i > 0 && ' '}
+        <button
+          onClick={() => onWordTap(word, verse)}
+          onContextMenu={(e) => e.preventDefault()}
+          className="inline select-none [user-select:none] [-webkit-user-select:none]"
+        >
+          {word.text_uthmani}
+        </button>
+      </Fragment>
+    ));
+  } else {
+    textContent = verse.text_uthmani;
+  }
 
   return (
     <span
@@ -718,20 +791,7 @@ function MushafVerse({
       id={`verse-${verse.verse_number}`}
       data-verse-key={verse.verse_key}
     >
-      {words?.length && onWordTap
-        ? words.map((word, i) => (
-            <Fragment key={word.id}>
-              {i > 0 && ' '}
-              <button
-                onClick={() => onWordTap(word, verse)}
-                onContextMenu={(e) => e.preventDefault()}
-                className="inline select-none [user-select:none] [-webkit-user-select:none]"
-              >
-                {word.text_uthmani}
-              </button>
-            </Fragment>
-          ))
-        : verse.text_uthmani}
+      {textContent}
       {onMarkerTap ? (
         <button
           type="button"

@@ -18,6 +18,7 @@ interface AppStore {
   arabicSize: ArabicSize;
   tapDictionary: boolean;
   recitationSpeed: number;
+  memorizeMode: boolean;
   setLastRead: (data: LastRead) => void;
   setAwradLastRead: (data: LastRead) => void;
   setJuzLastRead: (data: LastRead) => void;
@@ -28,6 +29,7 @@ interface AppStore {
   setArabicSize: (size: ArabicSize) => void;
   setTapDictionary: (on: boolean) => void;
   setRecitationSpeed: (wpm: number) => void;
+  setMemorizeMode: (on: boolean) => void;
 }
 
 const isValidTranslation = (id: unknown): id is number =>
@@ -46,6 +48,7 @@ export const useAppStore = create<AppStore>()(
       arabicSize: 1,
       tapDictionary: true,
       recitationSpeed: 90,
+      memorizeMode: false,
       setLastRead: (lastRead) => set({ lastRead }),
       setAwradLastRead: (awradLastRead) => set({ awradLastRead }),
       setJuzLastRead: (juzLastRead) => set({ juzLastRead }),
@@ -57,6 +60,7 @@ export const useAppStore = create<AppStore>()(
       setArabicSize: (arabicSize) => set({ arabicSize }),
       setTapDictionary: (tapDictionary) => set({ tapDictionary }),
       setRecitationSpeed: (recitationSpeed) => set({ recitationSpeed }),
+      setMemorizeMode: (memorizeMode) => set({ memorizeMode }),
     }),
     {
       name: 'mindful-quran',
